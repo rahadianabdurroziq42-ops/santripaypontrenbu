@@ -164,88 +164,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Welcome & Summary Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Wadiah */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
-              Total Saldo Titipan Wadiah
-            </span>
-            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
-              <Wallet className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
-            {formatRupiah(totalWadiah)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-emerald-700 font-semibold">100% Hak Santri</span>
-            <span>(Akad Wadiah)</span>
-          </p>
-        </div>
-
-        {/* Card 2: Pengeluaran Jajan Hari Ini */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
-              Jajan Dicairkan Hari Ini
-            </span>
-            <div className="p-2 bg-rose-100 text-rose-800 rounded-xl">
-              <Coins className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-rose-700 font-mono-numbers mt-2">
-            {formatRupiah(totalJajanToday)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {todayWithdrawals.length} santri telah mengambil
-          </p>
-        </div>
-
-        {/* Card 3: Penarikan Kebutuhan Lainnya */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
-              Total Kebutuhan Lainnya
-            </span>
-            <div className="p-2 bg-indigo-100 text-indigo-800 rounded-xl">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono-numbers mt-2">
-            {formatRupiah(totalOtherWithdrawals)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {otherWithdrawals.length} penarikan kebutuhan
-          </p>
-        </div>
-
-        {/* Card 4: Kepatuhan Kuota Jajan */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
-              Kepatuhan Kuota Jajan
-            </span>
-            <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="flex items-baseline space-x-2 mt-2">
-            <p className="text-2xl font-black text-slate-900 font-mono-numbers">
-              {alreadyTakenCount}
-            </p>
-            <span className="text-xs text-slate-500">dari {santriList.length} santri</span>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
-            <div
-              className="bg-emerald-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(alreadyTakenCount / santriList.length) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Teller Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Navigation Tabs between Jajan vs Kebutuhan Lainnya */}
@@ -260,7 +178,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
               }`}
             >
               <HandCoins className="w-4 h-4" />
-              <span>1. Penarikan Jajan Harian</span>
+              <span>Penarikan Jajan Harian</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
                 activeMode === 'JAJAN' ? 'bg-emerald-900 text-emerald-200' : 'bg-slate-100 text-slate-500'
               }`}>
@@ -536,9 +454,8 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Form Input Left (7 cols) */}
-              <div className="lg:col-span-7 bg-slate-50/70 rounded-xl p-5 border border-slate-200 space-y-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-slate-50/70 rounded-xl p-5 sm:p-6 border border-slate-200 space-y-4 shadow-xs">
                 <form onSubmit={handleCustomSubmit} className="space-y-4">
                   {/* Pilihan Santri yang Membutuhkan (Fitur Search & Tabel: Kiri Nama, Kanan Saldo) */}
                   <div className="space-y-2">
@@ -763,55 +680,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                     <span>Cairkan Kebutuhan & Terbitkan Struk</span>
                   </button>
                 </form>
-              </div>
-
-              {/* Right: History & Info (5 cols) */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                    <History className="w-4 h-4 text-indigo-600" />
-                    <span>Riwayat Penarikan Kebutuhan Terakhir:</span>
-                  </h4>
-
-                  {otherWithdrawals.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 text-xs">
-                      Belum ada penarikan kebutuhan khusus.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                      {otherWithdrawals.slice(0, 10).map((trx) => {
-                        const santri = santriList.find((s) => s.id === trx.santriId) || selectedCustomSantri;
-                        return (
-                          <div
-                            key={trx.id}
-                            className="p-3 rounded-xl border border-slate-200 hover:border-indigo-300 bg-slate-50/50 flex items-center justify-between text-xs"
-                          >
-                            <div>
-                              <span className="font-bold text-slate-900 block">{trx.santriName}</span>
-                              <span className="text-[11px] text-slate-600 block">{trx.notes}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">{trx.date} • {trx.category}</span>
-                            </div>
-                            <div className="text-right flex items-center gap-2">
-                              <span className="font-bold text-rose-700 font-mono-numbers">
-                                - {formatRupiah(trx.amount)}
-                              </span>
-                              {onViewReceipt && (
-                                <button
-                                  type="button"
-                                  onClick={() => onViewReceipt(trx, santri)}
-                                  className="p-1 rounded-lg bg-slate-200 hover:bg-indigo-100 hover:text-indigo-800 text-slate-600 transition-colors"
-                                  title="Cetak Struk"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>

@@ -2,17 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileCheck, 
   Search, 
-  Wallet, 
   AlertTriangle, 
   CheckCircle2, 
   Calendar, 
   UserCheck, 
-  Receipt,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  Printer,
-  History,
   MinusCircle
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
@@ -79,19 +72,6 @@ export const PenarikanSPPView: React.FC<PenarikanSPPViewProps> = ({
   const isBalanceSufficient = selectedSantri ? selectedSantri.balance >= deductionAmount : false;
   const remainingBalanceAfter = selectedSantri ? selectedSantri.balance - deductionAmount : 0;
 
-  // History of SPP deductions from Wadiah
-  const sppDeductionTransactions = useMemo(() => {
-    return transactions.filter(
-      (t) =>
-        t.type === 'WITHDRAWAL_SPP' ||
-        (t.type === 'SPECIAL_DISBURSEMENT' && t.notes && t.notes.toLowerCase().includes('spp'))
-    );
-  }, [transactions]);
-
-  const totalDeductedSPP = useMemo(() => {
-    return sppDeductionTransactions.reduce((sum, t) => sum + t.amount, 0);
-  }, [sppDeductionTransactions]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSantri || deductionAmount <= 0 || !isBalanceSufficient) return;
@@ -129,31 +109,18 @@ export const PenarikanSPPView: React.FC<PenarikanSPPViewProps> = ({
               Pemotongan uang SPP santri yang dibayarkan langsung dari saldo titipan wadiah atas instruksi / persetujuan orang tua santri.
             </p>
           </div>
-
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 text-right shrink-0">
-            <span className="text-[11px] font-semibold text-teal-200 uppercase tracking-wider block">
-              Total SPP Dipotong dari Wadiah
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono-numbers">
-              {formatRupiah(totalDeductedSPP)}
-            </span>
-            <span className="text-[10px] text-slate-300 block mt-0.5">
-              {sppDeductionTransactions.length} Transaksi Pelunasan
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Main Grid: Form Left (7 cols), Selected Santri Detail Right (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Form Penarikan SPP (7 cols) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
+      {/* Formulir Potong Saldo SPP Terpusat */}
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-teal-600" />
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+              <FileCheck className="w-5 h-5 text-teal-600" />
               <span>Formulir Potong Saldo Titipan untuk SPP</span>
             </h2>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
               Debet Rekening Wadiah
             </span>
           </div>
@@ -187,6 +154,27 @@ export const PenarikanSPPView: React.FC<PenarikanSPPViewProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Snapshot Santri Terpilih */}
+            {selectedSantri && (
+              <div className="p-3.5 rounded-xl bg-teal-50/70 border border-teal-200 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <UserCheck className="w-4 h-4 text-teal-700" />
+                    <span className="font-bold text-slate-900">{selectedSantri.name}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-teal-100 text-teal-800 border border-teal-300">
+                      {selectedSantri.gender === 'L' ? 'Santriwan' : 'Santriwati'}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[11px] text-slate-600">NISN: {selectedSantri.nisn}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 pt-1 border-t border-teal-200/60">
+                  <div>Rekening: <strong className="font-mono text-slate-800">{selectedSantri.accountNumber}</strong></div>
+                  <div>Asrama: <strong className="text-slate-800">{selectedSantri.dormitory}</strong></div>
+                  <div>Saldo: <strong className="text-emerald-700 font-mono-numbers">{formatRupiah(selectedSantri.balance)}</strong></div>
+                </div>
+              </div>
+            )}
 
             {/* 2. Bulan SPP & Nominal */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -307,172 +295,8 @@ export const PenarikanSPPView: React.FC<PenarikanSPPViewProps> = ({
             </div>
           </form>
         </div>
-
-        {/* Right Column: Selected Santri Info (5 cols) */}
-        <div className="lg:col-span-5 space-y-5">
-          {selectedSantri && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-800 font-bold text-base flex items-center justify-center shrink-0">
-                  {selectedSantri.name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900 truncate">
-                      {selectedSantri.name}
-                    </h3>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 border border-teal-200">
-                      {selectedSantri.gender === 'L' ? 'Santriwan' : 'Santriwati'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono">
-                    NISN: {selectedSantri.nisn} • {selectedSantri.className}
-                  </p>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {selectedSantri.dormitory}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">No. Rekening Wadiah:</span>
-                  <span className="font-mono font-semibold text-slate-800">{selectedSantri.accountNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Wali Santri:</span>
-                  <span className="font-semibold text-slate-800">{selectedSantri.guardianName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">No. HP Wali:</span>
-                  <span className="font-mono text-slate-700">{selectedSantri.guardianPhone}</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-200">
-                  <span className="text-slate-700 font-bold">Saldo Titipan Wadiah:</span>
-                  <span className="font-black text-emerald-700 font-mono-numbers text-sm">
-                    {formatRupiah(selectedSantri.balance)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Status SPP Auto-Debet Santri Ini */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 mb-2 flex items-center justify-between">
-                  <span>Riwayat Pemotongan SPP Santri Ini:</span>
-                </h4>
-
-                {sppDeductionTransactions.filter(t => t.santriId === selectedSantri.id).length === 0 ? (
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs">
-                    Belum ada riwayat pemotongan SPP dari saldo titipan santri ini.
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {sppDeductionTransactions
-                      .filter(t => t.santriId === selectedSantri.id)
-                      .map((trx) => (
-                        <div
-                          key={trx.id}
-                          className="p-2.5 rounded-xl border border-slate-200 hover:border-teal-300 bg-white flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-rose-700 block font-mono-numbers">
-                              - {formatRupiah(trx.amount)}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              {trx.date} • {trx.notes}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => onViewReceipt(trx, selectedSantri)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-teal-100 hover:text-teal-800 text-slate-600 transition-colors cursor-pointer"
-                            title="Cetak Kuitansi"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Table: Riwayat Seluruh Pemotongan SPP dari Saldo Titipan */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-teal-600" />
-            <h3 className="text-sm font-bold text-slate-900">
-              Riwayat Penarikan SPP dari Saldo Wadiah (Terbaru)
-            </h3>
-          </div>
-          <span className="text-xs text-slate-500 font-mono">
-            Total {sppDeductionTransactions.length} Transaksi Potong Saldo
-          </span>
-        </div>
-
-        {sppDeductionTransactions.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            Belum ada transaksi pemotongan SPP dari saldo titipan wadiah.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
-                  <th className="py-2.5 px-3">No. Transaksi</th>
-                  <th className="py-2.5 px-3">Tanggal & Waktu</th>
-                  <th className="py-2.5 px-3">Nama Santri</th>
-                  <th className="py-2.5 px-3">Keterangan</th>
-                  <th className="py-2.5 px-3 text-right">Nominal Dipotong</th>
-                  <th className="py-2.5 px-3 text-right">Sisa Saldo</th>
-                  <th className="py-2.5 px-3 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sppDeductionTransactions.slice(0, 8).map((trx) => {
-                  const santri = santriList.find((s) => s.id === trx.santriId) || selectedSantri;
-                  return (
-                    <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-medium text-slate-700">
-                        {trx.transactionNo}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 font-mono">
-                        {trx.date} {trx.time ? `• ${trx.time}` : ''}
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">
-                        {trx.santriName}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {trx.notes}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-bold text-rose-600 font-mono-numbers">
-                        - {formatRupiah(trx.amount)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-semibold text-slate-700 font-mono-numbers">
-                        {formatRupiah(trx.balanceAfter)}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onViewReceipt(trx, santri)}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Printer className="w-3 h-3" />
-                          Kuitansi
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );
 };
+

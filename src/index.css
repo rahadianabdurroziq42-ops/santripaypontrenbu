@@ -26,10 +26,20 @@
   aside,
   header:not(.print-header),
   footer:not(.print-footer),
-  button:not(.allow-print),
-  .fixed,
+  .fixed:not(.print-receipt-overlay),
   .sticky {
     display: none !important;
+  }
+
+  .print-receipt-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
   }
 
   /* Show elements designated for print only */

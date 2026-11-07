@@ -15,7 +15,8 @@ import {
   checkDailyAllowanceEligibility, 
   getTodayDateString, 
   getCurrentTimeString,
-  formatRupiah 
+  formatRupiah,
+  formatPaymentMethodLabel
 } from './utils/accounting';
 import {
   auth,
@@ -36,6 +37,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { Sidebar } from './components/Sidebar';
 import { TopHeader } from './components/TopHeader';
+import { DashboardTotalView } from './components/DashboardTotalView';
 import { DashboardTellerView } from './components/DashboardTellerView';
 import { SetorTitipanView } from './components/SetorTitipanView';
 import { SetorSPPView } from './components/SetorSPPView';
@@ -52,6 +54,10 @@ import { LandingPage } from './components/LandingPage';
 import { QuickTellerModal } from './components/QuickTellerModal';
 import { DepositModal } from './components/DepositModal';
 import { ReceiptModal } from './components/ReceiptModal';
+import { 
+  TransactionConfirmationModal, 
+  TransactionConfirmationData 
+} from './components/TransactionConfirmationModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ShieldCheck, RotateCcw, Calculator, ShieldAlert, Link2 } from 'lucide-react';
 
@@ -153,6 +159,7 @@ export default function App() {
   // Receipt popup state
   const [receiptTrx, setReceiptTrx] = useState<Transaction | null>(null);
   const [receiptSantri, setReceiptSantri] = useState<Santri | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<TransactionConfirmationData | null>(null);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Initialize Firebase connection & Auth listener
@@ -363,21 +370,36 @@ export default function App() {
     setViewMode('landing');
   };
 
-  // Process Withdrawal (Jajan 10.000 max, 1x a day)
-  const handleProcessWithdrawal = (santriId: string, amount: number, notes: string) => {
+  const handleToggleRole = () => {
+    const newRole: 'PENGURUS' | 'BENDAHARA' = currentUserRole === 'PENGURUS' ? 'BENDAHARA' : 'PENGURUS';
+    setCurrentUserRole(newRole);
+    try {
+      localStorage.setItem('santripay_user_role', newRole);
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          role: newRole,
+          displayName: newRole === 'PENGURUS' ? 'Pengurus Pesantren (Full Access)' : 'Bendahara Kasir Loket',
+        };
+        setCurrentUser(updatedUser as any);
+        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(updatedUser));
+      }
+    } catch (e) {
+      console.error('Failed to update role in storage', e);
+    }
+
+    if (newRole === 'BENDAHARA' && (activeTab === 'setor-spp' || activeTab === 'penarikan-spp')) {
+      setActiveTab('setor-titipan');
+    }
+  };
+
+  // Execution Helpers (Apply state & save to Firestore after confirmation)
+  const executeWithdrawal = (santriId: string, amount: number, notes: string) => {
     const santri = santriList.find((s) => s.id === santriId);
     if (!santri) return;
 
-    // Strict validation
-    const eligibility = checkDailyAllowanceEligibility(santri, transactions, todayStr);
-    if (!eligibility.canWithdraw) {
-      console.warn(`Pencairan Ditolak: ${eligibility.reason}`);
-      return;
-    }
-
-    const withdrawAmount = Math.min(amount, eligibility.maxAllowed, santri.dailyAllowanceLimit || 10000);
     const balanceBefore = santri.balance;
-    const balanceAfter = balanceBefore - withdrawAmount;
+    const balanceAfter = balanceBefore - amount;
 
     const newTrx: Transaction = {
       id: `trx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -388,7 +410,7 @@ export default function App() {
       santriName: santri.name,
       accountNumber: santri.accountNumber,
       type: 'WITHDRAWAL_JAJAN',
-      amount: withdrawAmount,
+      amount,
       balanceBefore,
       balanceAfter,
       method: 'CASH',
@@ -399,7 +421,6 @@ export default function App() {
 
     const updatedSantri: Santri = { ...santri, balance: balanceAfter };
 
-    // Update santri balance in local state and offline storage
     setSantriList((prev) => {
       const next = prev.map((s) => (s.id === santriId ? updatedSantri : s));
       try {
@@ -410,7 +431,6 @@ export default function App() {
       return next;
     });
 
-    // Append transaction in local state and offline storage
     setTransactions((prev) => {
       const next = [newTrx, ...prev];
       try {
@@ -421,23 +441,15 @@ export default function App() {
       return next;
     });
 
-    // Save to Cloud Firestore
     saveTransactionToCloud(newTrx).catch((e) => console.error('Cloud save trx error:', e));
     saveSantriToCloud(updatedSantri).catch((e) => console.error('Cloud balance error:', e));
 
-    // Close teller modal and show receipt
     setIsTellerModalOpen(false);
     setReceiptTrx(newTrx);
     setReceiptSantri(updatedSantri);
   };
 
-  // Quick dispense from cards (1 click)
-  const handleQuickDispense = (santriId: string) => {
-    handleProcessWithdrawal(santriId, 10000, 'Pencairan Jajan Harian');
-  };
-
-  // Process Deposit (Top Up Titipan Orang Tua)
-  const handleProcessDeposit = (
+  const executeDeposit = (
     santriId: string,
     amount: number,
     method: PaymentMethod,
@@ -473,7 +485,6 @@ export default function App() {
 
     const updatedSantri: Santri = { ...santri, balance: balanceAfter };
 
-    // Update santri balance in local state and offline storage
     setSantriList((prev) => {
       const next = prev.map((s) => (s.id === santriId ? updatedSantri : s));
       try {
@@ -484,7 +495,6 @@ export default function App() {
       return next;
     });
 
-    // Append transaction in local state and offline storage
     setTransactions((prev) => {
       const next = [newTrx, ...prev];
       try {
@@ -495,7 +505,6 @@ export default function App() {
       return next;
     });
 
-    // Save to Cloud Firestore
     saveTransactionToCloud(newTrx).catch((e) => console.error('Cloud save trx error:', e));
     saveSantriToCloud(updatedSantri).catch((e) => console.error('Cloud balance error:', e));
 
@@ -504,8 +513,7 @@ export default function App() {
     setReceiptSantri(updatedSantri);
   };
 
-  // Process SPP Deposit (Setoran SPP Syahriah)
-  const handleProcessSPPDeposit = (
+  const executeSPPDeposit = (
     santriId: string,
     amount: number,
     sppMonth: string,
@@ -553,8 +561,7 @@ export default function App() {
     setReceiptSantri(santri);
   };
 
-  // Process SPP Withdrawal from Wadiah Balance (Penarikan / Potong Saldo Wadiah untuk SPP)
-  const handleProcessSPPWithdrawal = (
+  const executeSPPWithdrawal = (
     santriId: string,
     amount: number,
     sppMonth: string,
@@ -614,8 +621,7 @@ export default function App() {
     setReceiptSantri(updatedSantri);
   };
 
-  // Process Custom Withdrawal (Penarikan Kebutuhan Lainnya: Kitab, Obat, Seragam, dll.)
-  const handleProcessCustomWithdrawal = (
+  const executeCustomWithdrawal = (
     santriId: string,
     amount: number,
     category: string,
@@ -673,6 +679,165 @@ export default function App() {
 
     setReceiptTrx(newTrx);
     setReceiptSantri(updatedSantri);
+  };
+
+  // Process Withdrawal (Jajan 10.000 max, 1x a day) with Confirmation Popup
+  const handleProcessWithdrawal = (santriId: string, amount: number, notes: string) => {
+    const santri = santriList.find((s) => s.id === santriId);
+    if (!santri) return;
+
+    // Strict validation
+    const eligibility = checkDailyAllowanceEligibility(santri, transactions, todayStr);
+    if (!eligibility.canWithdraw) {
+      console.warn(`Pencairan Ditolak: ${eligibility.reason}`);
+      return;
+    }
+
+    const withdrawAmount = Math.min(amount, eligibility.maxAllowed, santri.dailyAllowanceLimit || 10000);
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore - withdrawAmount;
+
+    setPendingConfirmation({
+      title: 'Konfirmasi Penarikan Jajan Harian',
+      transactionType: 'WITHDRAWAL_JAJAN',
+      typeName: 'Pencairan Jajan Harian',
+      santri,
+      amount: withdrawAmount,
+      balanceBefore,
+      balanceAfter,
+      method: 'Tunai Kasir',
+      notes: notes || 'Uang Jajan Harian (Maks. Rp 10.000 / Hari)',
+      onConfirm: () => {
+        executeWithdrawal(santriId, withdrawAmount, notes);
+        setPendingConfirmation(null);
+      },
+    });
+  };
+
+  // Quick dispense from cards (1 click) with Confirmation Popup
+  const handleQuickDispense = (santriId: string) => {
+    handleProcessWithdrawal(santriId, 10000, 'Pencairan Jajan Harian');
+  };
+
+  // Process Deposit (Top Up Titipan Orang Tua) with Confirmation Popup
+  const handleProcessDeposit = (
+    santriId: string,
+    amount: number,
+    method: PaymentMethod,
+    guardianName: string,
+    notes: string
+  ) => {
+    const santri = santriList.find((s) => s.id === santriId);
+    if (!santri || amount <= 0) return;
+
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    setPendingConfirmation({
+      title: 'Konfirmasi Setoran Titipan Wadiah',
+      transactionType: 'DEPOSIT_WADIAH',
+      typeName: 'Setoran Titipan Wadiah',
+      santri,
+      amount,
+      balanceBefore,
+      balanceAfter,
+      method: formatPaymentMethodLabel(method),
+      notes: notes || 'Titipan uang saku santri',
+      onConfirm: () => {
+        executeDeposit(santriId, amount, method, guardianName, notes);
+        setPendingConfirmation(null);
+      },
+    });
+  };
+
+  // Process SPP Deposit (Setoran SPP Syahriah) with Confirmation Popup
+  const handleProcessSPPDeposit = (
+    santriId: string,
+    amount: number,
+    sppMonth: string,
+    method: PaymentMethod,
+    payerName: string,
+    notes: string
+  ) => {
+    const santri = santriList.find((s) => s.id === santriId);
+    if (!santri || amount <= 0) return;
+
+    setPendingConfirmation({
+      title: 'Konfirmasi Setoran SPP Syahriah',
+      transactionType: 'DEPOSIT_SPP',
+      typeName: `Setoran SPP (${sppMonth})`,
+      santri,
+      amount,
+      balanceBefore: santri.balance,
+      balanceAfter: santri.balance,
+      method: formatPaymentMethodLabel(method),
+      notes: notes || `Pembayaran SPP Bulan ${sppMonth}`,
+      onConfirm: () => {
+        executeSPPDeposit(santriId, amount, sppMonth, method, payerName, notes);
+        setPendingConfirmation(null);
+      },
+    });
+  };
+
+  // Process SPP Withdrawal from Wadiah Balance with Confirmation Popup
+  const handleProcessSPPWithdrawal = (
+    santriId: string,
+    amount: number,
+    sppMonth: string,
+    notes: string
+  ) => {
+    const santri = santriList.find((s) => s.id === santriId);
+    if (!santri || amount <= 0 || santri.balance < amount) return;
+
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore - amount;
+
+    setPendingConfirmation({
+      title: 'Konfirmasi Potong Saldo Wadiah untuk SPP',
+      transactionType: 'WITHDRAWAL_SPP',
+      typeName: `Potong Saldo SPP (${sppMonth})`,
+      santri,
+      amount,
+      balanceBefore,
+      balanceAfter,
+      method: 'Auto-Debet Saldo Wadiah',
+      notes: notes || `Pelunasan SPP ${sppMonth} via Potong Saldo Wadiah`,
+      onConfirm: () => {
+        executeSPPWithdrawal(santriId, amount, sppMonth, notes);
+        setPendingConfirmation(null);
+      },
+    });
+  };
+
+  // Process Custom Withdrawal with Confirmation Popup
+  const handleProcessCustomWithdrawal = (
+    santriId: string,
+    amount: number,
+    category: string,
+    notes: string
+  ) => {
+    const santri = santriList.find((s) => s.id === santriId);
+    if (!santri || amount <= 0 || santri.balance < amount) return;
+
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore - amount;
+
+    setPendingConfirmation({
+      title: 'Konfirmasi Penarikan Kebutuhan Santri',
+      transactionType: 'WITHDRAWAL_OTHER',
+      typeName: `Penarikan Kebutuhan (${category})`,
+      santri,
+      amount,
+      balanceBefore,
+      balanceAfter,
+      method: 'Tunai Kasir',
+      category,
+      notes: notes || `Pengambilan Keperluan: ${category}`,
+      onConfirm: () => {
+        executeCustomWithdrawal(santriId, amount, category, notes);
+        setPendingConfirmation(null);
+      },
+    });
   };
 
   // Add Santri Handler
@@ -822,6 +987,7 @@ export default function App() {
         isOpenMobile={isOpenMobile}
         onCloseMobile={() => setIsOpenMobile(false)}
         onGoToLanding={() => setViewMode('landing')}
+        onToggleRole={handleToggleRole}
       />
 
       {/* Main Content Area (Offset by Sidebar width on desktop md:pl-72) */}
@@ -840,117 +1006,33 @@ export default function App() {
           onSignInGoogle={handleSignInGoogle}
           onSignOut={handleSignOut}
           onGoToLanding={() => setViewMode('landing')}
+          onToggleRole={handleToggleRole}
         />
 
         {/* View Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          {/* BANNER RUMUS KEUANGAN TERPADU (2 AKUN TERHUBUNG 1 DATABASE) */}
-          <div className="mb-6 bg-gradient-to-r from-slate-900 via-slate-850 to-emerald-950 text-white rounded-2xl p-4 sm:p-5 border border-emerald-500/30 shadow-lg no-print">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-700/80">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-                  <Calculator className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h3 className="text-sm sm:text-base font-black tracking-tight text-white">
-                      Buku Kas Terpadu • 2 Akun Terhubung 1 Sistem
-                    </h3>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                      <Link2 className="w-3 h-3" />
-                      <span>Sinkron Realtime</span>
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Akun Aktif:{' '}
-                    <strong className={currentUserRole === 'PENGURUS' ? 'text-amber-300' : 'text-teal-300'}>
-                      {currentUserRole === 'PENGURUS' ? 'Pengurus (Full Akses)' : 'Bendahara (Titipan & Jajan Saja)'}
-                    </strong>
-                    {' '}• Keduanya mencatat pada satu buku besar kas yang sama.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start lg:self-auto">
-                <span className={`text-[11px] px-2.5 py-1 rounded-lg font-bold border ${
-                  currentUserRole === 'PENGURUS'
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                    : 'bg-teal-500/20 text-teal-300 border-teal-500/30'
-                }`}>
-                  {currentUserRole === 'PENGURUS' ? 'Akses: SPP + Titipan + Jajan' : 'Akses: Titipan + Jajan (Tanpa SPP)'}
-                </span>
-              </div>
-            </div>
-
-            {/* RUMUS FINANSIAL: Total Setoran (Titipan + SPP) - Total Penarikan (Jajan + Kebutuhan + SPP) = Saldo Akhir */}
-            <div className="mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Kolom Setoran */}
-              <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-700/80">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                  <span className="font-bold uppercase tracking-wider text-emerald-400">Total Setoran</span>
-                  <span className="text-[10px] text-slate-400">Titipan + SPP</span>
-                </div>
-                <div className="text-lg font-black text-emerald-300 font-mono-numbers">
-                  {formatRupiah(financialTotals.totalSetoran)}
-                </div>
-                <div className="text-[10px] text-slate-400 mt-1 flex flex-col space-y-0.5 border-t border-slate-800 pt-1">
-                  <div className="flex justify-between">
-                    <span>• Setoran Titipan:</span>
-                    <span className="font-mono text-slate-300">{formatRupiah(financialTotals.totalSetoranTitipan)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Setoran SPP:</span>
-                    <span className="font-mono text-emerald-400">{formatRupiah(financialTotals.totalSetoranSPP)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kolom Penarikan */}
-              <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-700/80">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                  <span className="font-bold uppercase tracking-wider text-rose-400">Total Penarikan</span>
-                  <span className="text-[10px] text-slate-400">Jajan + Keperluan + SPP</span>
-                </div>
-                <div className="text-lg font-black text-rose-300 font-mono-numbers">
-                  {formatRupiah(financialTotals.totalPenarikan)}
-                </div>
-                <div className="text-[10px] text-slate-400 mt-1 flex flex-col space-y-0.5 border-t border-slate-800 pt-1">
-                  <div className="flex justify-between">
-                    <span>• Jajan Santri:</span>
-                    <span className="font-mono text-slate-300">{formatRupiah(financialTotals.totalPenarikanJajan)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Kebutuhan Lainnya:</span>
-                    <span className="font-mono text-slate-300">{formatRupiah(financialTotals.totalPenarikanKebutuhan)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Penarikan SPP:</span>
-                    <span className="font-mono text-rose-400">{formatRupiah(financialTotals.totalPenarikanSPP)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kolom Saldo Akhir Kas Terpadu */}
-              <div className="bg-gradient-to-br from-emerald-950/80 to-slate-900 rounded-xl p-3 border border-emerald-500/50 shadow-inner">
-                <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
-                  <span className="font-bold uppercase tracking-wider text-amber-300">Saldo Akhir Kas</span>
-                  <span className="text-[10px] text-emerald-400 font-bold">Setoran - Penarikan</span>
-                </div>
-                <div className="text-xl font-black text-amber-300 font-mono-numbers">
-                  {formatRupiah(financialTotals.saldoAkhirKas)}
-                </div>
-                <div className="text-[10px] text-emerald-200/90 mt-1 border-t border-slate-800 pt-1">
-                  <p className="leading-snug">
-                    Total Kas Terpadu yang dikelola bersama oleh Pengurus & Bendahara.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <ErrorBoundary fallbackTitle="Kendala Memuat Tampilan Akuntansi">
+            {/* MENU: DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <DashboardTotalView
+                santriList={santriList}
+                transactions={transactions}
+                pesantrenProfile={pesantrenProfile}
+                totalWadiah={totalWadiah}
+                currentUser={currentUser}
+                userRole={currentUserRole}
+                isCloudConnected={isCloudConnected}
+                onNavigateTab={(tabId) => setActiveTab(tabId)}
+                onOpenDeposit={() => setActiveTab('setor-titipan')}
+                onOpenTellerForSantri={(id) => {
+                  setSelectedSantriId(id);
+                  setIsTellerModalOpen(true);
+                }}
+              />
+            )}
+
             {/* MENU BENDAHARA • PENARIKAN - Sub-menu: Jajan + Kebutuhan Lainnya */}
-            {(activeTab === 'dashboard' || activeTab === 'loket-jajan') && (
+            {(activeTab === 'penarikan-jajan' || activeTab === 'loket-jajan') && (
               <DashboardTellerView
                 santriList={santriList}
                 transactions={transactions}
@@ -974,7 +1056,7 @@ export default function App() {
               />
             )}
 
-            {/* MENU BENDAHARA • 1. SETORAN - Sub-menu: SPP (Hanya untuk Pengurus) */}
+            {/* MENU BENDAHARA • SETORAN - Sub-menu: SPP (Hanya untuk Pengurus) */}
             {activeTab === 'setor-spp' && (
               currentUserRole === 'BENDAHARA' ? (
                 <div className="bg-white rounded-2xl p-8 border border-amber-200 shadow-sm text-center max-w-lg mx-auto my-8 space-y-4">
@@ -1040,7 +1122,7 @@ export default function App() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setActiveTab('dashboard')}
+                    onClick={() => setActiveTab('penarikan-jajan')}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
                   >
                     Buka Penarikan Jajan + Kebutuhan
@@ -1189,6 +1271,12 @@ export default function App() {
         onClose={() => setIsDepositModalOpen(false)}
         santriList={santriList}
         onProcessDeposit={handleProcessDeposit}
+      />
+
+      {/* Peringatan Konfirmasi Transaksi Popup */}
+      <TransactionConfirmationModal
+        data={pendingConfirmation}
+        onCancel={() => setPendingConfirmation(null)}
       />
 
       {receiptTrx && receiptSantri && (

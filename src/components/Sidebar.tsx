@@ -20,7 +20,8 @@ import {
   BookMarked,
   BookOpenCheck,
   GraduationCap,
-  MinusCircle
+  MinusCircle,
+  LayoutDashboard
 } from 'lucide-react';
 import { PesantrenProfile } from '../types/finance';
 import { formatRupiah } from '../utils/accounting';
@@ -37,6 +38,7 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onGoToLanding: () => void;
+  onToggleRole?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -51,11 +53,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   onGoToLanding,
+  onToggleRole,
 }) => {
   // Menu Bendahara submenu keys:
   // Setoran: 'setor-spp' (SPP) and 'setor-titipan' (Titipan)
-  // Penarikan: 'dashboard'/'loket-jajan' (Jajan + Kebutuhan Lainnya) and 'penarikan-spp' (SPP)
-  const menuBendaharaTabs = ['dashboard', 'loket-jajan', 'setor-spp', 'setor-titipan', 'penarikan-spp'];
+  // Penarikan: 'penarikan-jajan'/'loket-jajan' (Jajan + Kebutuhan Lainnya) and 'penarikan-spp' (SPP)
+  const menuBendaharaTabs = ['penarikan-jajan', 'loket-jajan', 'setor-spp', 'setor-titipan', 'penarikan-spp'];
   const isMenuBendaharaActive = menuBendaharaTabs.includes(activeTab);
 
   // Financial reports & Buku Kas submenu keys (all nested under Laporan & Akuntansi)
@@ -120,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (userRole === 'BENDAHARA') {
       return [
         {
-          id: 'dashboard',
+          id: 'penarikan-jajan',
           label: 'Jajan + Kebutuhan Lainnya',
           icon: HandCoins,
           desc: 'Penarikan uang jajan & keperluan santri',
@@ -130,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     return [
       {
-        id: 'dashboard',
+        id: 'penarikan-jajan',
         label: 'Jajan + Kebutuhan Lainnya',
         icon: HandCoins,
         desc: 'Penarikan uang jajan & keperluan santri',
@@ -250,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-[11px] text-slate-400 truncate">
                   {pesantrenProfile.name}
                 </p>
-                <div className="mt-1 flex items-center gap-1">
+                <div className="mt-1 flex items-center gap-1.5">
                   <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border ${
                     userRole === 'PENGURUS'
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
@@ -258,6 +261,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}>
                     {userRole === 'PENGURUS' ? 'Pengurus (Full Akses)' : 'Bendahara (Loket Kasir)'}
                   </span>
+                  {onToggleRole && (
+                    <button
+                      type="button"
+                      onClick={onToggleRole}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+                      title="Klik untuk beralih peran Pengurus / Bendahara"
+                    >
+                      ⇄
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,6 +281,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <p className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Menu Utama
             </p>
+
+            {/* MENU: DASHBOARD */}
+            <button
+              onClick={() => handleNavClick('dashboard')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'dashboard'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40 font-bold'
+                  : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <LayoutDashboard className={`w-4 h-4 ${activeTab === 'dashboard' ? 'text-white' : 'text-emerald-400'}`} />
+                <span>Dashboard</span>
+              </div>
+            </button>
 
             {/* PARENT MENU 1: MENU BENDAHARA (ACCORDION) */}
             <div>

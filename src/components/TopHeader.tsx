@@ -25,6 +25,7 @@ interface TopHeaderProps {
   onSignInGoogle?: () => void;
   onSignOut: () => void;
   onGoToLanding: () => void;
+  onToggleRole?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -40,6 +41,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onSignInGoogle,
   onSignOut,
   onGoToLanding,
+  onToggleRole,
 }) => {
   const currentDate = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -51,6 +53,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const getPageInfo = () => {
     switch (activeTab) {
       case 'dashboard':
+        return { parent: 'Menu Utama', title: 'Dashboard', badge: 'Kas Syariah' };
+      case 'penarikan-jajan':
       case 'loket-jajan':
         return { parent: 'Menu Bendahara • Penarikan', title: 'Penarikan Jajan + Kebutuhan Lainnya', badge: 'Uang Saku & Keperluan' };
       case 'setor-spp':
@@ -175,16 +179,26 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   {(currentUser.displayName || currentUser.email || 'B')[0].toUpperCase()}
                 </div>
               )}
-              <div className="hidden lg:block text-left">
+              <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[150px]">
                   {currentUser.displayName || (userRole === 'PENGURUS' ? 'Pengurus Pesantren' : 'Bendahara Loket')}
                 </p>
-                <p className="text-[10px] font-semibold flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${userRole === 'PENGURUS' ? 'bg-amber-500' : 'bg-teal-500'}`}></span>
-                  <span className={userRole === 'PENGURUS' ? 'text-amber-800' : 'text-teal-800'}>
-                    {userRole === 'PENGURUS' ? 'Pengurus (Akses Full)' : 'Bendahara (Akses Terbatas)'}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-2 h-2 rounded-full ${userRole === 'PENGURUS' ? 'bg-amber-500' : 'bg-teal-500'}`}></span>
+                  <span className={`text-[10px] font-bold ${userRole === 'PENGURUS' ? 'text-amber-800' : 'text-teal-800'}`}>
+                    {userRole === 'PENGURUS' ? 'Pengurus (Full Akses)' : 'Bendahara (Kasir Loket)'}
                   </span>
-                </p>
+                  {onToggleRole && (
+                    <button
+                      type="button"
+                      onClick={onToggleRole}
+                      className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-colors cursor-pointer"
+                      title="Klik untuk beralih antara peran Pengurus dan Bendahara"
+                    >
+                      Ganti Peran ⇄
+                    </button>
+                  )}
+                </div>
               </div>
               <button
                 onClick={onSignOut}

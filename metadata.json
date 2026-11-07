@@ -1,0 +1,6 @@
+{
+  "name": "SantriPay Syariah - Keuangan & Kas Titipan Pesantren",
+  "description": "Sistem Pembukuan Syariah & Rekening Wadiah Titipan Santri Pondok Pesantren dengan pembatasan jajan harian, Neraca Skontro/Staffel, dan Rekening Koran.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

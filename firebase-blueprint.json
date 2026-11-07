@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "Santri": {
+      "title": "Santri",
+      "description": "Data identitas dan rekening wadiah santri",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nisn": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "dormitory": { "type": "string" },
+        "className": { "type": "string" },
+        "guardianName": { "type": "string" },
+        "guardianPhone": { "type": "string" },
+        "guardianAddress": { "type": "string" },
+        "balance": { "type": "number" },
+        "dailyAllowanceLimit": { "type": "number" },
+        "status": { "type": "string", "enum": ["AKTIF", "CUTI", "ALUMNI", "DIBEKUKAN", "NONAKTIF"] },
+        "avatarSeed": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "nisn", "accountNumber", "name", "balance", "status"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Catatan transaksi keuangan titipan orang tua dan penarikan jajan santri",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "transactionNo": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "santriId": { "type": "string" },
+        "santriName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "balanceBefore": { "type": "number" },
+        "balanceAfter": { "type": "number" },
+        "method": { "type": "string" },
+        "tellerName": { "type": "string" },
+        "notes": { "type": "string" },
+        "guardianSenderName": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "transactionNo", "date", "santriId", "type", "amount", "balanceAfter"]
+    },
+    "PesantrenProfile": {
+      "title": "PesantrenProfile",
+      "description": "Profil identitas dan konfigurasi lembaga pesantren",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "formalName": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "tagline": { "type": "string" },
+        "address": { "type": "string" },
+        "district": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "bankAccountBSI": { "type": "string" },
+        "headOfTreasury": { "type": "string" },
+        "treasuryNIP": { "type": "string" },
+        "mudir": { "type": "string" },
+        "defaultDailyLimit": { "type": "number" },
+        "logoUrl": { "type": "string" }
+      },
+      "required": ["name", "formalName"]
+    }
+  },
+  "firestore": {
+    "/santri/{santriId}": {
+      "schema": { "$ref": "#/entities/Santri" },
+      "description": "Koleksi data santri dan saldo titipan wadiah"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Koleksi riwayat transaksi setoran titipan dan penarikan jajan"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/PesantrenProfile" },
+      "description": "Pengaturan identitas lembaga pesantren dan logo resmi"
+    }
+  }
+}

@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+.font-mono-numbers {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum' on, 'zero' on;
+}
+
+.font-arabic {
+  font-family: 'Amiri', serif;
+}
+
+/* ==========================================================================
+   ADVANCED PRINT STYLES FOR A4 & F4 (FOLIO) PORTRAIT & LANDSCAPE
+   ========================================================================== */
+
+@media print {
+  /* Hide non-printable elements */
+  .no-print,
+  nav,
+  aside,
+  header:not(.print-header),
+  footer:not(.print-footer),
+  button:not(.allow-print),
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Show elements designated for print only */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Reset document flow */
+  html,
+  body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    font-size: 10pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Main container unconstrained */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Paper container styling */
+  .print-card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+  }
+
+  /* Ensure tables stretch edge-to-edge cleanly */
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  /* Prevent row splitting across pages */
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  /* Prevent signature blocks and summary summaries from breaking awkwardly */
+  .print-no-break,
+  .signature-block,
+  .rekapitulasi-box {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Landscape specific tweaks */
+  body[data-paper-orientation="landscape"] .print-card {
+    width: 100% !important;
+  }
+
+  /* Typography scale in print */
+  h1 {
+    font-size: 14pt !important;
+  }
+  h2 {
+    font-size: 12pt !important;
+  }
+  h3 {
+    font-size: 11pt !important;
+  }
+
+  /* Ensure links don't display their URLs */
+  a[href]:after {
+    content: none !important;
+  }
+}

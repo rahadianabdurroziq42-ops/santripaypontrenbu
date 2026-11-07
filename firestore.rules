@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all (Master Gate Pillar 1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: Valid Santri Entity
+    function isValidSantri(data) {
+      return data.keys().hasAll(['id', 'nisn', 'accountNumber', 'name', 'balance', 'status']) &&
+        data.keys().hasOnly(['id', 'nisn', 'accountNumber', 'name', 'gender', 'dormitory', 'className', 'guardianName', 'guardianPhone', 'guardianAddress', 'balance', 'dailyAllowanceLimit', 'status', 'avatarSeed', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.nisn is string && data.nisn.size() <= 64 &&
+        data.accountNumber is string && data.accountNumber.size() <= 64 &&
+        data.name is string && data.name.size() <= 150 &&
+        data.balance is number && data.balance >= 0 &&
+        data.status in ['AKTIF', 'CUTI', 'ALUMNI', 'DIBEKUKAN', 'NONAKTIF'] &&
+        (!('gender' in data) || (data.gender in ['L', 'P'])) &&
+        (!('dormitory' in data) || (data.dormitory is string && data.dormitory.size() <= 100)) &&
+        (!('className' in data) || (data.className is string && data.className.size() <= 50)) &&
+        (!('guardianName' in data) || (data.guardianName is string && data.guardianName.size() <= 150)) &&
+        (!('guardianPhone' in data) || (data.guardianPhone is string && data.guardianPhone.size() <= 50)) &&
+        (!('guardianAddress' in data) || (data.guardianAddress is string && data.guardianAddress.size() <= 300)) &&
+        (!('dailyAllowanceLimit' in data) || (data.dailyAllowanceLimit is number && data.dailyAllowanceLimit >= 0)) &&
+        (!('avatarSeed' in data) || (data.avatarSeed is string && data.avatarSeed.size() <= 100)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 100));
+    }
+
+    // Helper: Valid Transaction Entity
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['id', 'transactionNo', 'date', 'santriId', 'type', 'amount', 'balanceAfter']) &&
+        data.keys().hasOnly(['id', 'transactionNo', 'date', 'time', 'santriId', 'santriName', 'accountNumber', 'type', 'amount', 'balanceBefore', 'balanceAfter', 'method', 'tellerName', 'notes', 'guardianSenderName', 'category']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.transactionNo is string && data.transactionNo.size() <= 100 &&
+        data.date is string && data.date.size() <= 20 &&
+        data.santriId is string && data.santriId.size() <= 128 &&
+        data.type is string && data.type.size() <= 50 &&
+        data.amount is number && data.amount > 0 &&
+        data.balanceAfter is number && data.balanceAfter >= 0 &&
+        (!('time' in data) || (data.time is string && data.time.size() <= 20)) &&
+        (!('santriName' in data) || (data.santriName is string && data.santriName.size() <= 150)) &&
+        (!('accountNumber' in data) || (data.accountNumber is string && data.accountNumber.size() <= 64)) &&
+        (!('balanceBefore' in data) || (data.balanceBefore is number && data.balanceBefore >= 0)) &&
+        (!('method' in data) || (data.method is string && data.method.size() <= 50)) &&
+        (!('tellerName' in data) || (data.tellerName is string && data.tellerName.size() <= 100)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        (!('guardianSenderName' in data) || (data.guardianSenderName is string && data.guardianSenderName.size() <= 150)) &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 100));
+    }
+
+    // Helper: Valid Pesantren Profile Entity
+    function isValidPesantrenProfile(data) {
+      return data.keys().hasAll(['name', 'formalName']) &&
+        data.keys().hasOnly(['name', 'formalName', 'subtitle', 'tagline', 'address', 'district', 'phone', 'email', 'bankAccountBSI', 'headOfTreasury', 'treasuryNIP', 'mudir', 'defaultDailyLimit', 'logoUrl', 'motto']) &&
+        data.name is string && data.name.size() <= 200 &&
+        data.formalName is string && data.formalName.size() <= 300 &&
+        (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 300)) &&
+        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 300)) &&
+        (!('address' in data) || (data.address is string && data.address.size() <= 500)) &&
+        (!('district' in data) || (data.district is string && data.district.size() <= 200)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 100)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+        (!('bankAccountBSI' in data) || (data.bankAccountBSI is string && data.bankAccountBSI.size() <= 200)) &&
+        (!('headOfTreasury' in data) || (data.headOfTreasury is string && data.headOfTreasury.size() <= 200)) &&
+        (!('treasuryNIP' in data) || (data.treasuryNIP is string && data.treasuryNIP.size() <= 100)) &&
+        (!('mudir' in data) || (data.mudir is string && data.mudir.size() <= 200)) &&
+        (!('defaultDailyLimit' in data) || (data.defaultDailyLimit is number && data.defaultDailyLimit >= 0)) &&
+        (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 5000000)) &&
+        (!('motto' in data) || (data.motto is string && data.motto.size() <= 500));
+    }
+
+    // Test connection healthcheck rule
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // Santri collection rules (Public read for Parent Portal & Teller, strictly validated writes)
+    match /santri/{santriId} {
+      allow read: if true;
+      allow create: if isValidId(santriId) && isValidSantri(incoming());
+      allow update: if isValidId(santriId) && (
+        isValidSantri(incoming()) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['balance']) && incoming().balance is number && incoming().balance >= 0) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['balance', 'dailyAllowanceLimit', 'status', 'className', 'dormitory', 'guardianPhone', 'guardianAddress', 'name'])) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['dailyAllowanceLimit', 'status', 'className', 'dormitory', 'guardianPhone', 'guardianAddress']))
+      );
+      allow delete: if isValidId(santriId);
+    }
+
+    // Transactions collection rules (Append-only immutable financial ledger)
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow create: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow update: if false; // Strict financial ledger immutability
+      allow delete: if false; // Strict financial ledger immutability
+    }
+
+    // Pesantren Settings / Profile (Public read for Kop & Logo, validated writes)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingId) && isValidPesantrenProfile(incoming());
+      allow delete: if false;
+    }
+  }
+}

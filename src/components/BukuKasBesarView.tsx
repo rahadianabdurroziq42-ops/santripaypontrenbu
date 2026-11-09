@@ -98,9 +98,14 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
       const methodStr = String(trx.method || '').toUpperCase();
       const amt = Number(trx.amount) || 0;
       if (trx.date < startDate) {
-        if (trx.type === 'DEPOSIT_WADIAH' && !methodStr.includes('BANK')) {
+        if ((trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') && !methodStr.includes('BANK')) {
           kasTunaiOpening += amt;
-        } else if (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT') {
+        } else if (
+          trx.type === 'WITHDRAWAL_JAJAN' ||
+          trx.type === 'WITHDRAWAL_OTHER' ||
+          trx.type === 'WITHDRAWAL_SPP' ||
+          trx.type === 'SPECIAL_DISBURSEMENT'
+        ) {
           kasTunaiOpening -= amt;
         }
       }
@@ -118,7 +123,7 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
       const methodStr = String(trx.method || '').toUpperCase();
       const amt = Number(trx.amount) || 0;
       if (trx.date < startDate) {
-        if (trx.type === 'DEPOSIT_WADIAH' && methodStr.includes('BANK')) {
+        if ((trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') && methodStr.includes('BANK')) {
           kasBankOpening += amt;
         }
       }
@@ -135,9 +140,14 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
       if (!trx || !trx.date) continue;
       const amt = Number(trx.amount) || 0;
       if (trx.date < startDate) {
-        if (trx.type === 'DEPOSIT_WADIAH') {
+        if (trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') {
           wadiahOpening += amt;
-        } else if (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT') {
+        } else if (
+          trx.type === 'WITHDRAWAL_JAJAN' ||
+          trx.type === 'WITHDRAWAL_OTHER' ||
+          trx.type === 'WITHDRAWAL_SPP' ||
+          trx.type === 'SPECIAL_DISBURSEMENT'
+        ) {
           wadiahOpening -= amt;
         }
       }
@@ -163,7 +173,8 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
       const accNo = String(trx.accountNumber || '-');
       const trxNo = String(trx.transactionNo || '-');
 
-      if (trx.type === 'DEPOSIT_WADIAH') {
+      if (trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') {
+        const descPrefix = trx.type === 'DEPOSIT_SPP' ? 'Penerimaan SPP' : 'Penerimaan titipan';
         if (isBank) {
           kasBankDebit += amt;
           kasBankBalance += amt;
@@ -171,7 +182,7 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
             date: trx.date || '',
             time: trx.time || '',
             refNo: trxNo,
-            description: `Penerimaan titipan transfer wali: ${sName} (Rek. ${accNo})`,
+            description: `${descPrefix} transfer via bank: ${sName} (Rek. ${accNo})`,
             debit: amt,
             credit: 0,
             balance: kasBankBalance,
@@ -185,7 +196,7 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
             date: trx.date || '',
             time: trx.time || '',
             refNo: trxNo,
-            description: `Penerimaan titipan tunai loket: ${sName} (Rek. ${accNo})`,
+            description: `${descPrefix} tunai loket: ${sName} (Rek. ${accNo})`,
             debit: amt,
             credit: 0,
             balance: kasTunaiBalance,
@@ -201,14 +212,22 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
           date: trx.date || '',
           time: trx.time || '',
           refNo: trxNo,
-          description: `Penambahan saldo titipan wadiah: ${sName} [${accNo}]`,
+          description: `Penambahan saldo titipan/SPP: ${sName} [${accNo}]`,
           debit: 0,
           credit: amt,
           balance: wadiahBalance,
           santriName: sName,
           accountNumber: accNo,
         });
-      } else if (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT') {
+      } else if (
+        trx.type === 'WITHDRAWAL_JAJAN' ||
+        trx.type === 'WITHDRAWAL_OTHER' ||
+        trx.type === 'WITHDRAWAL_SPP' ||
+        trx.type === 'SPECIAL_DISBURSEMENT'
+      ) {
+        const descWithdrawal = trx.type === 'WITHDRAWAL_JAJAN'
+          ? 'Pencairan jajan harian tunai'
+          : (trx.type === 'WITHDRAWAL_SPP' ? 'Potong saldo untuk SPP' : `Pencairan keperluan (${trx.category || 'santri'})`);
         // Disbursed in cash at loket
         kasTunaiCredit += amt;
         kasTunaiBalance -= amt;
@@ -216,7 +235,7 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
           date: trx.date || '',
           time: trx.time || '',
           refNo: trxNo,
-          description: `Pencairan jajan harian tunai: ${sName} [${accNo}]`,
+          description: `${descWithdrawal}: ${sName} [${accNo}]`,
           debit: 0,
           credit: amt,
           balance: kasTunaiBalance,

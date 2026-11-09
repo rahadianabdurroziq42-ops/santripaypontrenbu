@@ -86,9 +86,14 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
       if (!trx || !trx.date) continue;
       if (trx.date < startDate) {
         const amt = Number(trx.amount) || 0;
-        if (trx.type === 'DEPOSIT_WADIAH') {
+        if (trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') {
           balance += amt;
-        } else if (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT') {
+        } else if (
+          trx.type === 'WITHDRAWAL_JAJAN' ||
+          trx.type === 'WITHDRAWAL_OTHER' ||
+          trx.type === 'WITHDRAWAL_SPP' ||
+          trx.type === 'SPECIAL_DISBURSEMENT'
+        ) {
           balance -= amt;
         }
       }
@@ -129,7 +134,7 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
       let penerimaan = 0;
       let pengeluaran = 0;
 
-      if (trx.type === 'DEPOSIT_WADIAH') {
+      if (trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP') {
         penerimaan = amt;
         sumPenerimaan += amt;
         runningBalance += amt;
@@ -138,7 +143,12 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
         } else {
           sumTunai += amt;
         }
-      } else if (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT') {
+      } else if (
+        trx.type === 'WITHDRAWAL_JAJAN' ||
+        trx.type === 'WITHDRAWAL_OTHER' ||
+        trx.type === 'WITHDRAWAL_SPP' ||
+        trx.type === 'SPECIAL_DISBURSEMENT'
+      ) {
         pengeluaran = amt;
         sumPengeluaran += amt;
         runningBalance -= amt;
@@ -153,8 +163,13 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
 
       const matchesType =
         typeFilter === 'ALL' ||
-        (typeFilter === 'DEPOSIT' && trx.type === 'DEPOSIT_WADIAH') ||
-        (typeFilter === 'WITHDRAWAL' && (trx.type === 'WITHDRAWAL_JAJAN' || trx.type === 'SPECIAL_DISBURSEMENT'));
+        (typeFilter === 'DEPOSIT' && (trx.type === 'DEPOSIT_WADIAH' || trx.type === 'DEPOSIT_SPP')) ||
+        (typeFilter === 'WITHDRAWAL' && (
+          trx.type === 'WITHDRAWAL_JAJAN' ||
+          trx.type === 'WITHDRAWAL_OTHER' ||
+          trx.type === 'WITHDRAWAL_SPP' ||
+          trx.type === 'SPECIAL_DISBURSEMENT'
+        ));
 
       const q = (searchQuery || '').trim().toLowerCase();
       const trxNo = String(trx.transactionNo || '').toLowerCase();

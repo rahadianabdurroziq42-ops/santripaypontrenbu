@@ -19,7 +19,10 @@ import {
   formatRupiah, 
   formatDateIndo, 
   getTodayDateString,
-  formatPaymentMethodLabel 
+  formatPaymentMethodLabel,
+  isCreditTransaction,
+  isDebitTransaction,
+  getTransactionDescription
 } from '../utils/accounting';
 import { PrintControlBar } from './PrintControlBar';
 
@@ -83,8 +86,8 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
       const inDateRange = t.date >= startDate && t.date <= endDate;
       if (!inDateRange) return false;
 
-      const isDeposit = t.type === 'DEPOSIT_WADIAH';
-      const isWithdrawal = t.type === 'WITHDRAWAL_JAJAN' || t.type === 'SPECIAL_DISBURSEMENT';
+      const isDeposit = isCreditTransaction(t.type);
+      const isWithdrawal = isDebitTransaction(t.type);
 
       const matchesType =
         filterType === 'ALL' ||
@@ -134,10 +137,10 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
     for (const t of filteredTrx) {
       if (!t) continue;
       const amt = Number(t.amount) || 0;
-      if (t.type === 'DEPOSIT_WADIAH') {
+      if (isCreditTransaction(t.type)) {
         deposits += amt;
         countDep += 1;
-      } else if (t.type === 'WITHDRAWAL_JAJAN' || t.type === 'SPECIAL_DISBURSEMENT') {
+      } else if (isDebitTransaction(t.type)) {
         withdrawals += amt;
         countWith += 1;
       }
@@ -174,10 +177,10 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
         };
       }
 
-      if (t.type === 'DEPOSIT_WADIAH') {
+      if (isCreditTransaction(t.type)) {
         dailyGroups[dateKey].depositTotal += amt;
         dailyGroups[dateKey].countDeposit += 1;
-      } else if (t.type === 'WITHDRAWAL_JAJAN' || t.type === 'SPECIAL_DISBURSEMENT') {
+      } else if (isDebitTransaction(t.type)) {
         dailyGroups[dateKey].withdrawalTotal += amt;
         dailyGroups[dateKey].countWithdrawal += 1;
       }
@@ -207,7 +210,7 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
     ];
 
     const rows = sortedDetailedTrx.map((t, idx) => {
-      const isDeposit = t?.type === 'DEPOSIT_WADIAH';
+      const isDeposit = isCreditTransaction(t?.type || '');
       const amt = Number(t?.amount) || 0;
       const balAfter = Number(t?.balanceAfter) || 0;
 
@@ -651,7 +654,7 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
                     </tr>
                   ) : (
                     sortedDetailedTrx.map((t, idx) => {
-                      const isDeposit = t?.type === 'DEPOSIT_WADIAH';
+                      const isDeposit = isCreditTransaction(t?.type || '');
                       const amt = Number(t?.amount) || 0;
                       const balAfter = Number(t?.balanceAfter) || 0;
 
@@ -678,10 +681,10 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
                                     : 'bg-rose-100 text-rose-800'
                                 }`}
                               >
-                                {isDeposit ? 'SETORAN' : 'JAJAN'}
+                                {isDeposit ? 'SETORAN' : 'PENARIKAN'}
                               </span>
                               <span className="text-[11px] text-slate-700 truncate max-w-xs">
-                                {t?.notes || (isDeposit ? 'Top up titipan orang tua' : 'Penarikan jajan harian')}
+                                {t?.notes || getTransactionDescription(t)}
                               </span>
                             </div>
                           </td>

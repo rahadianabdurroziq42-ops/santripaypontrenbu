@@ -6,8 +6,6 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   Lock, 
-  Wallet, 
-  User, 
   ShieldAlert,
   ArrowRight
 } from 'lucide-react';
@@ -23,7 +21,7 @@ interface QuickTellerModalProps {
   onClose: () => void;
   santriList: Santri[];
   transactions: Transaction[];
-  pesantrenProfile: PesantrenProfile;
+  pesantrenProfile?: PesantrenProfile;
   onProcessWithdrawal: (santriId: string, amount: number, notes: string) => void;
 }
 
@@ -32,7 +30,7 @@ export const QuickTellerModal: React.FC<QuickTellerModalProps> = ({
   onClose,
   santriList,
   transactions,
-  pesantrenProfile,
+  pesantrenProfile: _pesantrenProfile,
   onProcessWithdrawal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');

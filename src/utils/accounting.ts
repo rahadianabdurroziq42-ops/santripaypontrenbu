@@ -234,7 +234,7 @@ export function calculateNeraca(
   let countSetoranTitipan = 0;
 
   relevantTrx.forEach((t) => {
-    if (t.type === 'DEPOSIT_WADIAH') {
+    if (isCreditTransaction(t.type)) {
       totalSetoranTitipan += t.amount;
       countSetoranTitipan++;
       if ((t.method || '').includes('BANK')) {
@@ -242,7 +242,7 @@ export function calculateNeraca(
       } else {
         totalTitipanTunai += t.amount;
       }
-    } else if (t.type === 'WITHDRAWAL_JAJAN' || t.type === 'SPECIAL_DISBURSEMENT') {
+    } else if (isDebitTransaction(t.type)) {
       totalJajanDitarik += t.amount;
       countJajanDitarik++;
     }
@@ -318,6 +318,38 @@ export interface RekeningKoranData {
   closingBalance: number;
 }
 
+export function isCreditTransaction(type: string): boolean {
+  return type === 'DEPOSIT_WADIAH' || type === 'DEPOSIT_SPP';
+}
+
+export function isDebitTransaction(type: string): boolean {
+  return (
+    type === 'WITHDRAWAL_JAJAN' ||
+    type === 'WITHDRAWAL_OTHER' ||
+    type === 'WITHDRAWAL_SPP' ||
+    type === 'SPECIAL_DISBURSEMENT'
+  );
+}
+
+export function getTransactionDescription(trx: Transaction): string {
+  switch (trx.type) {
+    case 'DEPOSIT_WADIAH':
+      return `Setoran Titipan Wadiah (${trx.guardianSenderName || 'Wali Santri'})`;
+    case 'DEPOSIT_SPP':
+      return `Setoran SPP Syahriah (${trx.notes || 'Iuran Bulanan'})`;
+    case 'WITHDRAWAL_JAJAN':
+      return 'Penarikan Uang Jajan Harian (Maks Rp 10.000)';
+    case 'WITHDRAWAL_OTHER':
+      return trx.category ? `Penarikan: ${trx.category}` : 'Penarikan Kebutuhan Santri';
+    case 'WITHDRAWAL_SPP':
+      return `Potong Saldo Wadiah untuk SPP (${trx.notes || 'SPP'})`;
+    case 'SPECIAL_DISBURSEMENT':
+      return `Pencairan Kebutuhan Santri (${trx.category || 'Khusus'})`;
+    default:
+      return trx.category || 'Transaksi Rekening Wadiah';
+  }
+}
+
 export function getRekeningKoran(
   santriId: string,
   startDate: string,
@@ -332,21 +364,37 @@ export function getRekeningKoran(
   const santriTrx = transactions
     .filter((t) => t.santriId === santriId)
     .sort((a, b) => {
-      const dateA = `${a.date} ${a.time}`;
-      const dateB = `${b.date} ${b.time}`;
-      return dateA.localeCompare(dateB);
+      const dateA = `${a.date} ${a.time || '00:00:00'}`;
+      const dateB = `${b.date} ${b.time || '00:00:00'}`;
+      const comp = dateA.localeCompare(dateB);
+      if (comp !== 0) return comp;
+      return (a.id || '').localeCompare(b.id || '');
     });
 
-  // Calculate opening balance before startDate
-  let runningBalance = 0;
-  let openingBalance = 0;
+  // Calculate total net change across all recorded transactions for this santri
+  let totalAllCredits = 0;
+  let totalAllDebits = 0;
+  santriTrx.forEach((t) => {
+    if (isCreditTransaction(t.type)) {
+      totalAllCredits += t.amount;
+    } else {
+      totalAllDebits += t.amount;
+    }
+  });
+
+  // The baseline balance before the first recorded transaction
+  // ensures that baseline + (all credits) - (all debits) = santri.balance
+  const baselineBalance = santri.balance - (totalAllCredits - totalAllDebits);
+
+  let runningBalance = baselineBalance;
+  let openingBalance = baselineBalance;
 
   const lines: RekeningKoranLine[] = [];
   let totalDebit = 0;
   let totalCredit = 0;
 
   santriTrx.forEach((trx) => {
-    const isCredit = trx.type === 'DEPOSIT_WADIAH';
+    const isCredit = isCreditTransaction(trx.type);
     const debitAmount = isCredit ? 0 : trx.amount;
     const creditAmount = isCredit ? trx.amount : 0;
 
@@ -369,11 +417,9 @@ export function getRekeningKoran(
       lines.push({
         id: trx.id,
         date: trx.date,
-        time: trx.time,
+        time: trx.time || '08:00:00',
         transactionNo: trx.transactionNo,
-        description: trx.type === 'DEPOSIT_WADIAH'
-          ? `Setoran Titipan Wali (${trx.guardianSenderName || 'Wali Santri'})`
-          : `Penarikan Uang Jajan Harian (Maks Rp 10.000)`,
+        description: getTransactionDescription(trx),
         notes: trx.notes,
         debit: debitAmount,
         credit: creditAmount,
@@ -384,6 +430,9 @@ export function getRekeningKoran(
     }
   });
 
+  // Closing balance for the selected period
+  const closingBalance = openingBalance + totalCredit - totalDebit;
+
   return {
     santri,
     startDate,
@@ -392,7 +441,7 @@ export function getRekeningKoran(
     lines,
     totalDebit,
     totalCredit,
-    closingBalance: runningBalance,
+    closingBalance,
   };
 }
 

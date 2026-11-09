@@ -5,12 +5,6 @@ import {
   Trash2, 
   CheckCircle2, 
   Save, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  CreditCard, 
-  UserCheck, 
-  Coins, 
   Eye,
   AlertCircle,
   Sparkles,
@@ -19,7 +13,6 @@ import {
 } from 'lucide-react';
 import { PesantrenProfile } from '../types/finance';
 import { defaultPesantrenProfile } from '../data/initialData';
-import { formatRupiah } from '../utils/accounting';
 
 interface ProfilPesantrenViewProps {
   pesantrenProfile: PesantrenProfile;

@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import { 
-  Receipt, 
-  Printer, 
   Search, 
   Calendar, 
   ArrowDownLeft, 
   ArrowUpRight, 
-  Building2, 
-  ShieldCheck,
-  CheckCircle,
-  FileSpreadsheet
+  Building2
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
 import { 
@@ -51,9 +46,6 @@ export const RekeningKoranView: React.FC<RekeningKoranViewProps> = ({
     transactions
   );
 
-  const handlePrint = () => {
-    window.print();
-  };
 
   const filteredSantri = santriList.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -16,7 +16,6 @@ import {
   X,
   Scale,
   Landmark,
-  Eye,
   BookMarked,
   BookOpenCheck,
   GraduationCap,
@@ -37,7 +36,6 @@ interface SidebarProps {
   onResetData: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
-  onGoToLanding: () => void;
   onToggleRole?: () => void;
 }
 
@@ -52,7 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onResetData,
   isOpenMobile,
   onCloseMobile,
-  onGoToLanding,
   onToggleRole,
 }) => {
   // Menu Bendahara submenu keys:

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, UserCheck, Check, AlertCircle } from 'lucide-react';
+import { Search, Check, AlertCircle } from 'lucide-react';
 import { Santri } from '../types/finance';
 import { formatRupiah } from '../utils/accounting';
 

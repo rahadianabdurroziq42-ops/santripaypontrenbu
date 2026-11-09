@@ -52,7 +52,6 @@ import { BukuKasUmumView } from './components/BukuKasUmumView';
 import { BukuKasBesarView } from './components/BukuKasBesarView';
 import { LandingPage } from './components/LandingPage';
 import { QuickTellerModal } from './components/QuickTellerModal';
-import { DepositModal } from './components/DepositModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { 
   TransactionConfirmationModal, 
@@ -151,7 +150,6 @@ export default function App() {
 
   // Modals state (triggered when needed)
   const [isTellerModalOpen, setIsTellerModalOpen] = useState(false);
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   
   // Selected santri for modals or views
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
@@ -508,7 +506,6 @@ export default function App() {
     saveTransactionToCloud(newTrx).catch((e) => console.error('Cloud save trx error:', e));
     saveSantriToCloud(updatedSantri).catch((e) => console.error('Cloud balance error:', e));
 
-    setIsDepositModalOpen(false);
     setReceiptTrx(newTrx);
     setReceiptSantri(updatedSantri);
   };
@@ -1005,7 +1002,6 @@ export default function App() {
         onResetData={handleResetData}
         isOpenMobile={isOpenMobile}
         onCloseMobile={() => setIsOpenMobile(false)}
-        onGoToLanding={() => setViewMode('landing')}
         onToggleRole={handleToggleRole}
       />
 
@@ -1017,12 +1013,10 @@ export default function App() {
           onOpenMobileMenu={() => setIsOpenMobile(true)}
           pesantrenProfile={pesantrenProfile}
           totalWadiah={totalWadiah}
-          santriAlreadyTakenCount={santriAlreadyTakenCount}
           totalActiveSantri={santriList.length}
           currentUser={currentUser}
           userRole={currentUserRole}
           isCloudConnected={isCloudConnected}
-          onSignInGoogle={handleSignInGoogle}
           onSignOut={handleSignOut}
           onGoToLanding={() => setViewMode('landing')}
           onToggleRole={handleToggleRole}
@@ -1283,13 +1277,6 @@ export default function App() {
         transactions={transactions}
         pesantrenProfile={pesantrenProfile}
         onProcessWithdrawal={handleProcessWithdrawal}
-      />
-
-      <DepositModal
-        isOpen={isDepositModalOpen}
-        onClose={() => setIsDepositModalOpen(false)}
-        santriList={santriList}
-        onProcessDeposit={handleProcessDeposit}
       />
 
       {/* Peringatan Konfirmasi Transaksi Popup */}

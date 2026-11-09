@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
-  RotateCw, 
-  Layers, 
-  SlidersHorizontal,
-  ChevronDown
+  SlidersHorizontal
 } from 'lucide-react';
 import { 
   PaperSize, 

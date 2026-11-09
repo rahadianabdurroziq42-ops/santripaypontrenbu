@@ -4,7 +4,6 @@ import {
   ShieldCheck, 
   Wallet,
   ChevronRight,
-  Eye,
   LogIn
 } from 'lucide-react';
 import { PesantrenProfile, AuthUser } from '../types/finance';
@@ -17,12 +16,10 @@ interface TopHeaderProps {
   onOpenMobileMenu: () => void;
   pesantrenProfile: PesantrenProfile;
   totalWadiah: number;
-  santriAlreadyTakenCount: number;
   totalActiveSantri: number;
   currentUser: AuthUser | User | null;
   userRole?: 'PENGURUS' | 'BENDAHARA';
   isCloudConnected: boolean;
-  onSignInGoogle?: () => void;
   onSignOut: () => void;
   onGoToLanding: () => void;
   onToggleRole?: () => void;
@@ -33,12 +30,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenMobileMenu,
   pesantrenProfile,
   totalWadiah,
-  santriAlreadyTakenCount,
   totalActiveSantri,
   currentUser,
   userRole = 'PENGURUS',
   isCloudConnected,
-  onSignInGoogle,
   onSignOut,
   onGoToLanding,
   onToggleRole,

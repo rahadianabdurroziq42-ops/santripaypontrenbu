@@ -8,8 +8,6 @@ import {
   HandCoins, 
   PlusCircle, 
   X, 
-  Printer, 
-  CheckCircle,
   CheckCircle2,
   Lock,
   Unlock,
@@ -18,12 +16,7 @@ import {
   Edit3,
   Trash2,
   ShieldAlert,
-  RotateCcw,
   UserCheck,
-  UserX,
-  Phone,
-  Home,
-  GraduationCap,
   Sparkles
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
@@ -469,8 +462,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 filteredSantri.map((santri) => {
                   const eligibility = checkDailyAllowanceEligibility(santri, transactions, todayStr);
                   const isFrozen = santri.status === 'DIBEKUKAN' || santri.status === 'NONAKTIF';
-                  const isCuti = santri.status === 'CUTI';
-                  const isAlumni = santri.status === 'ALUMNI';
                   const isAktif = santri.status === 'AKTIF';
 
                   return (

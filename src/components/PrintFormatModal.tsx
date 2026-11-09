@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
   X, 
-  FileText, 
   RotateCw, 
   Check, 
   Sparkles, 
   Info, 
-  SlidersHorizontal,
   Layers
 } from 'lucide-react';
 import { 

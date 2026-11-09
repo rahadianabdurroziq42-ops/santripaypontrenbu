@@ -3,10 +3,7 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   X, 
-  ArrowRight,
-  ShieldAlert,
-  Wallet,
-  Receipt
+  ShieldAlert
 } from 'lucide-react';
 import { Santri } from '../types/finance';
 import { formatRupiah } from '../utils/accounting';

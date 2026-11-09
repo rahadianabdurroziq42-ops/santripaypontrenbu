@@ -524,6 +524,9 @@ export default function App() {
     const santri = santriList.find((s) => s.id === santriId);
     if (!santri || amount <= 0) return;
 
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore + amount;
+
     const newTrx: Transaction = {
       id: `trx-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       transactionNo: `TRX-SPP-${todayStr.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
@@ -534,8 +537,8 @@ export default function App() {
       accountNumber: santri.accountNumber,
       type: 'DEPOSIT_SPP',
       amount,
-      balanceBefore: santri.balance,
-      balanceAfter: santri.balance,
+      balanceBefore,
+      balanceAfter,
       method,
       tellerName: method.includes('BANK') 
         ? 'Sistem Otomatis (Transfer Bank)' 
@@ -544,6 +547,18 @@ export default function App() {
       notes: notes || `Pembayaran SPP Bulan ${sppMonth}`,
       category: 'Setoran SPP Syahriah',
     };
+
+    const updatedSantri: Santri = { ...santri, balance: balanceAfter };
+
+    setSantriList((prev) => {
+      const next = prev.map((s) => (s.id === santriId ? updatedSantri : s));
+      try {
+        localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next));
+      } catch (e) {
+        console.error('Storage error:', e);
+      }
+      return next;
+    });
 
     setTransactions((prev) => {
       const next = [newTrx, ...prev];
@@ -556,9 +571,10 @@ export default function App() {
     });
 
     saveTransactionToCloud(newTrx).catch((e) => console.error('Cloud save trx error:', e));
+    saveSantriToCloud(updatedSantri).catch((e) => console.error('Cloud balance error:', e));
 
     setReceiptTrx(newTrx);
-    setReceiptSantri(santri);
+    setReceiptSantri(updatedSantri);
   };
 
   const executeSPPWithdrawal = (
@@ -762,14 +778,17 @@ export default function App() {
     const santri = santriList.find((s) => s.id === santriId);
     if (!santri || amount <= 0) return;
 
+    const balanceBefore = santri.balance;
+    const balanceAfter = balanceBefore + amount;
+
     setPendingConfirmation({
       title: 'Konfirmasi Setoran SPP Syahriah',
       transactionType: 'DEPOSIT_SPP',
       typeName: `Setoran SPP (${sppMonth})`,
       santri,
       amount,
-      balanceBefore: santri.balance,
-      balanceAfter: santri.balance,
+      balanceBefore,
+      balanceAfter,
       method: formatPaymentMethodLabel(method),
       notes: notes || `Pembayaran SPP Bulan ${sppMonth}`,
       onConfirm: () => {

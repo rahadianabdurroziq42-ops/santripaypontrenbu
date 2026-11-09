@@ -1,24 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { 
   PlusCircle, 
-  Search, 
   CreditCard, 
   Banknote, 
-  Receipt, 
   HeartHandshake, 
-  ArrowRight, 
-  CheckCircle2, 
-  CheckCircle,
-  Clock, 
-  UserCheck, 
-  X, 
-  Check, 
-  Wallet,
-  Sparkles,
-  AlertCircle
+  ArrowRight
 } from 'lucide-react';
 import { Santri, Transaction, PaymentMethod, PesantrenProfile } from '../types/finance';
-import { formatRupiah, formatPaymentMethodLabel } from '../utils/accounting';
+import { formatRupiah } from '../utils/accounting';
+import { SantriSelectTable } from './SantriSelectTable';
 
 interface SetorTitipanViewProps {
   santriList: Santri[];
@@ -36,16 +26,13 @@ interface SetorTitipanViewProps {
 
 export const SetorTitipanView: React.FC<SetorTitipanViewProps> = ({
   santriList,
-  transactions,
+  transactions: _transactions,
   pesantrenProfile,
   onProcessDeposit,
-  onViewReceipt,
+  onViewReceipt: _onViewReceipt,
 }) => {
   // Selected santri ID
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
-  
-  // Search query for searching santri
-  const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Deposit form state
   const [amount, setAmount] = useState<number>(300000);
@@ -63,48 +50,6 @@ export const SetorTitipanView: React.FC<SetorTitipanViewProps> = ({
     setSelectedSantriId(santri.id);
     setGuardianSenderName(santri.guardianName);
   };
-
-  // Filtered santri based on search input (name, account number, NISN, dormitory)
-  const filteredSantri = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return santriList.filter((s) => {
-      const matchName = s.name.toLowerCase().includes(q);
-      const matchAcc = s.accountNumber.toLowerCase().includes(q);
-      const matchNis = s.nisn.toLowerCase().includes(q);
-      const matchDorm = s.dormitory.toLowerCase().includes(q);
-      return matchName || matchAcc || matchNis || matchDorm;
-    });
-  }, [santriList, searchQuery]);
-
-  // Deposit transactions specifically for the selected santri
-  const santriDeposits = useMemo(() => {
-    if (!selectedSantri) return [];
-    return transactions
-      .filter((t) => t.santriId === selectedSantri.id && t.type === 'DEPOSIT_WADIAH')
-      .sort((a, b) => {
-        const comp = b.date.localeCompare(a.date);
-        if (comp !== 0) return comp;
-        return (b.time || '').localeCompare(a.time || '');
-      });
-  }, [selectedSantri, transactions]);
-
-  // Total deposits ever received for this santri
-  const totalSantriDeposits = useMemo(() => {
-    return santriDeposits.reduce((acc, curr) => acc + curr.amount, 0);
-  }, [santriDeposits]);
-
-  // Global recent deposit transactions (all santri)
-  const allRecentDeposits = useMemo(() => {
-    return transactions
-      .filter((t) => t.type === 'DEPOSIT_WADIAH')
-      .sort((a, b) => {
-        const comp = b.date.localeCompare(a.date);
-        if (comp !== 0) return comp;
-        return (b.time || '').localeCompare(a.time || '');
-      })
-      .slice(0, 8);
-  }, [transactions]);
 
   const quickAmounts = [100000, 200000, 300000, 500000, 1000000];
 
@@ -161,7 +106,7 @@ export const SetorTitipanView: React.FC<SetorTitipanViewProps> = ({
                 Formulir Setoran Titipan Santri
               </h3>
               <p className="text-xs text-slate-500">
-                Cari santri penerima, masukkan nominal titipan, dan simpan transaksi loket
+                Verifikasi data santri, wali santri, dan sisa saldo sebelum memproses transaksi
               </p>
             </div>
             <span className="text-[10px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
@@ -169,181 +114,17 @@ export const SetorTitipanView: React.FC<SetorTitipanViewProps> = ({
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Bagian Pencarian & Pemilihan Santri */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Pencarian Santri Penerima Titipan
-              </label>
-
-              {/* Input Pencarian Santri */}
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Ketik Nama Santri / No. Rekening / NISN / Asrama..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-20 py-2.5 text-xs sm:text-sm bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-amber-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 font-medium transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-2 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 bg-slate-200/80 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Hapus
-                  </button>
-                )}
-              </div>
-
-              {/* Menu Pilih Santri yang Ditemukan (Muncul saat mengetik) */}
-              {searchQuery.trim().length > 0 && (
-                <div className="bg-slate-50/90 rounded-xl p-3 border border-amber-300/80 space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-amber-900 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Hasil Pencarian ({filteredSantri.length} Santri):</span>
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Klik tombol <strong>Pilih</strong> untuk menetapkan santri
-                    </span>
-                  </div>
-
-                  {filteredSantri.length === 0 ? (
-                    <div className="p-3 text-center text-xs text-slate-500 bg-white rounded-lg border border-dashed border-slate-300">
-                      Santri dengan kata kunci &quot;{searchQuery}&quot; tidak ditemukan. Silakan periksa kembali nama, NISN, atau No. Rekening.
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {filteredSantri.map((s) => {
-                        const isSelected = selectedSantri?.id === s.id;
-                        return (
-                          <div
-                            key={s.id}
-                            onClick={() => handleSelectSantri(s)}
-                            className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-amber-100/70 border-amber-500 ring-1 ring-amber-500 text-slate-900'
-                                : 'bg-white hover:bg-slate-100/80 border-slate-200 text-slate-800'
-                            }`}
-                          >
-                            <div className="min-w-0 pr-2">
-                              <p className="text-xs font-bold text-slate-900 truncate">
-                                {s.name}
-                              </p>
-                              <p className="text-[11px] text-slate-500 truncate">
-                                Rek: <span className="font-mono font-semibold text-slate-700">{s.accountNumber}</span> • NISN: {s.nisn} • {s.dormitory.split(' - ')[0]}
-                              </p>
-                              <p className="text-[10px] text-emerald-700 font-semibold">
-                                Saldo Saat Ini: {formatRupiah(s.balance)} • Wali: {s.guardianName}
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleSelectSantri(s)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center space-x-1 ${
-                                isSelected
-                                  ? 'bg-amber-600 text-white shadow-xs'
-                                  : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300'
-                              }`}
-                            >
-                              {isSelected ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>Terpilih</span>
-                                </>
-                              ) : (
-                                <span>Pilih</span>
-                              )}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Selector Cepat / Pilihan Dropdown jika ingin memilih langsung */}
-              <div className="pt-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
-                  <span>Atau pilih langsung dari daftar seluruh santri:</span>
-                  <span className="font-semibold text-slate-600">{santriList.length} Santri Terdaftar</span>
-                </div>
-                <select
-                  value={selectedSantriId}
-                  onChange={(e) => {
-                    const found = santriList.find((s) => s.id === e.target.value);
-                    if (found) handleSelectSantri(found);
-                  }}
-                  className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 cursor-pointer"
-                >
-                  {santriList.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} — Rek: {s.accountNumber} ({s.dormitory.split(' - ')[0]}) — Saldo: {formatRupiah(s.balance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Snapshot Santri Aktif Terpilih (Data yang Tampil Mengacu pada Santri yang Tertulis) */}
-            {selectedSantri && (
-              <div className="bg-gradient-to-br from-amber-50/80 via-white to-emerald-50/80 border-2 border-amber-300/80 rounded-2xl p-4 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
-                  <div className="flex items-center space-x-2">
-                    <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700">
-                      <UserCheck className="w-4 h-4" />
-                    </span>
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Santri Penerima Terpilih:
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Akun Rekening Aktif
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="space-y-1">
-                    <p className="text-sm font-extrabold text-slate-900 leading-tight">
-                      {selectedSantri.name}
-                    </p>
-                    <p className="text-slate-600 font-medium">
-                      No. Rekening:{' '}
-                      <strong className="text-amber-900 font-mono font-bold bg-amber-100/70 px-1.5 py-0.5 rounded">
-                        {selectedSantri.accountNumber}
-                      </strong>
-                    </p>
-                    <p className="text-slate-500 text-[11px]">
-                      NISN: {selectedSantri.nisn} • {selectedSantri.dormitory}
-                    </p>
-                    <p className="text-slate-600 text-[11px]">
-                      Wali Santri: <strong className="text-slate-800">{selectedSantri.guardianName}</strong>
-                    </p>
-                  </div>
-
-                  <div className="bg-white/80 p-3 rounded-xl border border-amber-200/80 flex flex-col justify-between">
-                    <div>
-                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                        Saldo Wadiah Saat Ini
-                      </p>
-                      <p className="text-base font-black text-emerald-800 font-mono-numbers">
-                        {formatRupiah(selectedSantri.balance)}
-                      </p>
-                    </div>
-                    <div className="pt-2 border-t border-slate-100 mt-1">
-                      <p className="text-[10px] text-slate-500">Estimasi Saldo Setelah Setor:</p>
-                      <p className="text-xs font-extrabold text-amber-900 font-mono-numbers">
-                        {formatRupiah(selectedSantri.balance + (amount > 0 ? amount : 0))}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Bagian Tabel Verifikasi & Pemilihan Santri (Nama Santri, Wali Santri, Sisa Saldo) */}
+            <SantriSelectTable
+              santriList={santriList}
+              selectedSantriId={selectedSantriId}
+              onSelectSantri={handleSelectSantri}
+              accentColor="amber"
+              estimatedDelta={amount}
+              label="Verifikasi Data Santri Penerima Titipan:"
+              placeholder="Cari nama santri, nama wali, NISN, atau no. rekening..."
+            />
 
             {/* Nominal Setoran */}
             <div>

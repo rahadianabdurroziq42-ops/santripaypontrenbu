@@ -1,17 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { 
   GraduationCap, 
-  Search, 
   CreditCard, 
   Banknote, 
-  CheckCircle2, 
   Calendar, 
-  UserCheck, 
   FileCheck2,
-  Printer
+  CheckCircle2
 } from 'lucide-react';
 import { Santri, Transaction, PaymentMethod, PesantrenProfile } from '../types/finance';
-import { formatRupiah, formatPaymentMethodLabel } from '../utils/accounting';
+import { SantriSelectTable } from './SantriSelectTable';
 
 interface SetorSPPViewProps {
   santriList: Santri[];
@@ -45,13 +42,12 @@ const MONTHS_LIST = [
 
 export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
   santriList,
-  transactions,
-  pesantrenProfile,
+  transactions: _transactions,
+  pesantrenProfile: _pesantrenProfile,
   onProcessSPPDeposit,
-  onViewReceipt,
+  onViewReceipt: _onViewReceipt,
 }) => {
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('November 2026');
   const [sppAmount, setSppAmount] = useState<number>(450000);
   const [method, setMethod] = useState<PaymentMethod>('CASH');
@@ -61,19 +57,6 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
   const selectedSantri = useMemo(() => {
     return santriList.find((s) => s.id === selectedSantriId) || santriList[0];
   }, [santriList, selectedSantriId]);
-
-  const filteredSantriList = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return santriList;
-    return santriList.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.nisn.includes(q) ||
-        s.accountNumber.includes(q) ||
-        s.dormitory.toLowerCase().includes(q) ||
-        s.className.toLowerCase().includes(q)
-    );
-  }, [santriList, searchQuery]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +84,7 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                Menu Bendahara • Setoran
+                Menu Pengurus & Bendahara • Setoran SPP
               </span>
               <span className="text-[11px] font-semibold text-slate-300">
                 Iuran Syahriah & SPP
@@ -112,7 +95,7 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
               <span>Setoran SPP Syahriah Santri</span>
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100/80 mt-1 max-w-2xl">
-              Pencatatan setoran uang SPP bulanan santri secara langsung melalui loket bendahara (Tunai atau Transfer Bank).
+              Pencatatan setoran uang SPP bulanan santri secara langsung melalui loket bendahara (menambah saldo kas dan rekening santri).
             </p>
           </div>
         </div>
@@ -131,61 +114,22 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* 1. Pilih Santri */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Pilih Santri Penyetor:
-              </label>
-              <div className="relative mb-2">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Cari Nama Santri / NISN / No. Rekening..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* 1. Verifikasi Data Santri via Tabel (Nama Santri, Wali Santri, Sisa Saldo) */}
+            <SantriSelectTable
+              santriList={santriList}
+              selectedSantriId={selectedSantriId}
+              onSelectSantri={(santri) => setSelectedSantriId(santri.id)}
+              accentColor="emerald"
+              estimatedDelta={sppAmount}
+              label="Verifikasi Data Santri Pembayar SPP:"
+              placeholder="Cari nama santri, wali santri, NISN, atau no. rekening..."
+            />
 
-              <select
-                value={selectedSantriId}
-                onChange={(e) => setSelectedSantriId(e.target.value)}
-                className="w-full text-xs font-semibold p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {filteredSantriList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} - {s.nisn} ({s.className} / {s.dormitory})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Snapshot Santri Terpilih */}
-            {selectedSantri && (
-              <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <UserCheck className="w-4 h-4 text-emerald-700" />
-                    <span className="font-bold text-slate-900">{selectedSantri.name}</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      {selectedSantri.gender === 'L' ? 'Santriwan' : 'Santriwati'}
-                    </span>
-                  </div>
-                  <span className="font-mono text-[11px] text-slate-600">NISN: {selectedSantri.nisn}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 pt-1 border-t border-emerald-200/60">
-                  <div>Kelas: <strong className="text-slate-800">{selectedSantri.className}</strong></div>
-                  <div>Asrama: <strong className="text-slate-800">{selectedSantri.dormitory}</strong></div>
-                  <div>Wali: <strong className="text-slate-800">{selectedSantri.guardianName}</strong></div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. Pilih Bulan Pembayaran */}
+            {/* 2. Pilih Bulan Pembayaran & Nominal SPP */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
                   Bulan Pembayaran SPP:
                 </label>
                 <div className="relative">
@@ -193,7 +137,7 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-9 pr-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     {MONTHS_LIST.map((m) => (
                       <option key={m} value={m}>
@@ -204,9 +148,8 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                 </div>
               </div>
 
-              {/* 3. Nominal SPP */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
                   Nominal Pembayaran SPP:
                 </label>
                 <div className="relative">
@@ -228,9 +171,9 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                       key={preset}
                       type="button"
                       onClick={() => setSppAmount(preset)}
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-colors ${
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
                         sppAmount === preset
-                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
                           : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                       }`}
                     >
@@ -241,9 +184,9 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
               </div>
             </div>
 
-            {/* 4. Metode Pembayaran */}
+            {/* 3. Metode Pembayaran */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
                 Metode Pembayaran:
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -281,10 +224,10 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
               </div>
             </div>
 
-            {/* 5. Nama Penyetor & Catatan */}
+            {/* 4. Nama Penyetor & Catatan */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
                   Nama Penyetor (Wali / Santri):
                 </label>
                 <input
@@ -292,19 +235,19 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                   placeholder={selectedSantri?.guardianName || 'Nama Ayah / Ibu'}
                   value={payerName}
                   onChange={(e) => setPayerName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
                   Catatan Kuitansi:
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 />
               </div>
             </div>
@@ -314,10 +257,10 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
               <button
                 type="submit"
                 disabled={!selectedSantri || sppAmount <= 0}
-                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Simpan Setoran SPP & Terbitkan Kuitansi</span>
+                <span>Simpan Setoran SPP &amp; Terbitkan Kuitansi</span>
               </button>
             </div>
           </form>
@@ -326,4 +269,3 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
     </div>
   );
 };
-

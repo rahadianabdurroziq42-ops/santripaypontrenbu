@@ -26,6 +26,7 @@ import {
   checkDailyAllowanceEligibility, 
   getTodayDateString 
 } from '../utils/accounting';
+import { SantriSelectTable } from './SantriSelectTable';
 
 interface DashboardTellerViewProps {
   santriList: Santri[];
@@ -80,7 +81,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   const [customAmount, setCustomAmount] = useState<number>(50000);
   const [customCategory, setCustomCategory] = useState<string>('Kitab & Buku');
   const [customNotes, setCustomNotes] = useState<string>('Pembelian kitab pelajaran semester baru');
-  const [customSearch, setCustomSearch] = useState<string>('');
 
   const todayStr = getTodayDateString();
 
@@ -133,13 +133,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
     if (filterMode === 'ALREADY_TAKEN') return eligibility.status === 'ALREADY_TAKEN';
     return true;
   });
-
-  // Filtered santri list for Kebutuhan Lain selection (search by name)
-  const filteredCustomSantriList = useMemo(() => {
-    if (!customSearch.trim()) return santriList;
-    const q = customSearch.trim().toLowerCase();
-    return santriList.filter((s) => s.name.toLowerCase().includes(q));
-  }, [santriList, customSearch]);
 
   // Selected santri for Kebutuhan Lain
   const selectedCustomSantri = useMemo(() => {
@@ -339,6 +332,9 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                           <div className="text-[10px] text-slate-500 font-mono">
                             NISN: {santri.nisn} • {santri.accountNumber}
                           </div>
+                          <div className="text-[10px] text-slate-600">
+                            Wali: <strong className="text-slate-800">{santri.guardianName}</strong>
+                          </div>
                         </td>
                         <td className="py-2.5 px-3">
                           <div className="text-slate-800 font-medium">{santri.dormitory}</div>
@@ -457,111 +453,16 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
             <div className="max-w-3xl mx-auto">
               <div className="bg-slate-50/70 rounded-xl p-5 sm:p-6 border border-slate-200 space-y-4 shadow-xs">
                 <form onSubmit={handleCustomSubmit} className="space-y-4">
-                  {/* Pilihan Santri yang Membutuhkan (Fitur Search & Tabel: Kiri Nama, Kanan Saldo) */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-slate-700">
-                      Pilih Santri yang Membutuhkan:
-                    </label>
-
-                    {/* Fitur Search Nama Santri */}
-                    <div className="relative flex items-center">
-                      <div className="absolute left-3 text-slate-400 pointer-events-none">
-                        <Search className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <input
-                        type="text"
-                        value={customSearch}
-                        onChange={(e) => setCustomSearch(e.target.value)}
-                        placeholder="Ketik nama santri untuk mencari..."
-                        className="w-full pl-9 pr-20 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-xs placeholder-slate-400"
-                      />
-                      {customSearch && (
-                        <button
-                          type="button"
-                          onClick={() => setCustomSearch('')}
-                          className="absolute right-2.5 px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors cursor-pointer"
-                        >
-                          Hapus
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Tabel Pilihan Santri (Kiri: Nama Santri, Kanan: Saldo Tersisa) */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                      <div className="max-h-48 overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10 border-b border-slate-200">
-                            <tr>
-                              <th className="py-2 px-3 font-bold text-slate-700">Nama Santri</th>
-                              <th className="py-2 px-3 font-bold text-slate-700 text-right">Sisa Saldo</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {filteredCustomSantriList.length > 0 ? (
-                              filteredCustomSantriList.map((s) => {
-                                const isSelected = customSantriId === s.id;
-                                return (
-                                  <tr
-                                    key={s.id}
-                                    onClick={() => setCustomSantriId(s.id)}
-                                    className={`transition-colors cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-indigo-50/90 font-bold'
-                                        : 'hover:bg-slate-50 text-slate-700'
-                                    }`}
-                                  >
-                                    <td className="py-2.5 px-3">
-                                      <div className="flex items-center space-x-2">
-                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                          isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
-                                        }`}>
-                                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                                        </div>
-                                        <span className={`truncate ${isSelected ? 'text-indigo-950 font-bold' : 'text-slate-800'}`}>
-                                          {s.name}
-                                        </span>
-                                      </div>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-right">
-                                      <span className={`font-mono font-mono-numbers ${isSelected ? 'font-black text-indigo-700' : 'font-semibold text-slate-900'}`}>
-                                        {formatRupiah(s.balance)}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            ) : (
-                              <tr>
-                                <td colSpan={2} className="py-6 text-center text-slate-400 text-xs">
-                                  Tidak ada nama santri yang cocok dengan "{customSearch}".
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Bar Ringkasan Santri Terpilih */}
-                      {selectedCustomSantri && (
-                        <div className="p-2.5 bg-indigo-50/80 border-t border-indigo-100 flex items-center justify-between text-xs">
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <span className="text-[10px] uppercase font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">
-                              Terpilih
-                            </span>
-                            <span className="font-bold text-indigo-950 truncate">
-                              {selectedCustomSantri.name}
-                            </span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-[10px] text-slate-500 mr-1.5">Sisa Saldo:</span>
-                            <span className="font-mono font-black text-indigo-700 font-mono-numbers">
-                              {formatRupiah(selectedCustomSantri.balance)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Pilihan Santri yang Membutuhkan (Tabel: Nama Santri, Wali Santri, Sisa Saldo) */}
+                  <SantriSelectTable
+                    santriList={santriList}
+                    selectedSantriId={customSantriId}
+                    onSelectSantri={(santri) => setCustomSantriId(santri.id)}
+                    accentColor="indigo"
+                    estimatedDelta={-customAmount}
+                    label="Pilih Santri yang Membutuhkan (Verifikasi Nama, Wali & Saldo):"
+                    placeholder="Cari nama santri, wali santri, NISN, atau no. rekening..."
+                  />
 
                   {/* Kategori Keperluan (Dropdown) */}
                   <div>

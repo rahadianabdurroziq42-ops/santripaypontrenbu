@@ -183,7 +183,7 @@ export const QuickTellerModal: React.FC<QuickTellerModalProps> = ({
                             {santri.name}
                           </p>
                           <p className="text-[10px] text-slate-500 truncate">
-                            {santri.accountNumber} • {santri.dormitory.split(' - ')[0]}
+                            Wali: <strong className="text-slate-700">{santri.guardianName}</strong> • Rek: {santri.accountNumber}
                           </p>
                           <p className="text-[11px] font-semibold text-emerald-800 font-mono-numbers">
                             Saldo: {formatRupiah(santri.balance)}

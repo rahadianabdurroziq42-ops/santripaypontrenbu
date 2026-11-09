@@ -78,6 +78,9 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationModal
                 {data.santri.className}
               </span>
             </div>
+            <p className="text-[11px] text-slate-600">
+              Wali Santri: <strong className="text-slate-800">{data.santri.guardianName}</strong>
+            </p>
             <p className="text-[11px] text-slate-500 font-mono">
               Rek: {data.santri.accountNumber} • NISN: {data.santri.nisn}
             </p>

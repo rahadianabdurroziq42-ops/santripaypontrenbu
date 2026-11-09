@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { 
   X, 
   PlusCircle, 
-  Search, 
   ArrowRight, 
   CreditCard, 
   Banknote, 
-  QrCode, 
   HeartHandshake
 } from 'lucide-react';
 import { Santri, PaymentMethod } from '../types/finance';
 import { formatRupiah } from '../utils/accounting';
+import { SantriSelectTable } from './SantriSelectTable';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -32,7 +31,6 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   onProcessDeposit,
 }) => {
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
-  const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState<number>(300000);
   const [method, setMethod] = useState<PaymentMethod>('BANK_TRANSFER_BSI');
   const [guardianSenderName, setGuardianSenderName] = useState<string>('');
@@ -42,21 +40,10 @@ export const DepositModal: React.FC<DepositModalProps> = ({
 
   const selectedSantri = santriList.find((s) => s.id === selectedSantriId) || santriList[0];
 
-  // Update guardian name when santri changes
-  const handleSelectSantri = (id: string) => {
-    setSelectedSantriId(id);
-    const s = santriList.find((item) => item.id === id);
-    if (s) {
-      setGuardianSenderName(s.guardianName);
-    }
+  const handleSelectSantri = (s: Santri) => {
+    setSelectedSantriId(s.id);
+    setGuardianSenderName(s.guardianName);
   };
-
-  const filteredSantri = santriList.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.nisn.includes(searchTerm) ||
-    s.accountNumber.includes(searchTerm) ||
-    s.dormitory.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const quickAmounts = [100000, 200000, 300000, 500000, 1000000];
 
@@ -100,104 +87,16 @@ export const DepositModal: React.FC<DepositModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
-          {/* Santri Selection */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Pilih Santri Penerima Titipan
-            </label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Ketik nama santri / NISN / No. Rekening..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-16 py-2 text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1.5 px-2 py-0.5 text-[10px] font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors"
-                >
-                  Hapus
-                </button>
-              )}
-            </div>
-
-            {/* Menu Pilih Santri yang Ditemukan saat mengetik */}
-            {searchTerm.trim().length > 0 && (
-              <div className="bg-amber-50/70 border border-amber-300 rounded-xl p-2.5 space-y-1.5 max-h-40 overflow-y-auto">
-                <p className="text-[11px] font-bold text-amber-900">Hasil Pencarian ({filteredSantri.length} Santri):</p>
-                {filteredSantri.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-1 text-center">Santri tidak ditemukan</p>
-                ) : (
-                  filteredSantri.map((s) => {
-                    const isSelected = selectedSantri?.id === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        className={`p-2 rounded-lg border flex items-center justify-between text-xs transition-all ${
-                          isSelected ? 'bg-amber-200/80 border-amber-500 font-bold' : 'bg-white border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="min-w-0 pr-2">
-                          <p className="font-bold text-slate-900 truncate">{s.name}</p>
-                          <p className="text-[10px] text-slate-500">Rek: {s.accountNumber} • Saldo: {formatRupiah(s.balance)}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSelectSantri(s.id);
-                            setSearchTerm('');
-                          }}
-                          className={`px-2.5 py-1 text-xs rounded font-bold cursor-pointer transition-colors ${
-                            isSelected ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                          }`}
-                        >
-                          {isSelected ? 'Terpilih' : 'Pilih'}
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-
-            <select
-              value={selectedSantriId}
-              onChange={(e) => handleSelectSantri(e.target.value)}
-              className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 cursor-pointer"
-            >
-              {santriList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} - Rek: {s.accountNumber} ({s.dormitory.split(' - ')[0]}) - Saldo: {formatRupiah(s.balance)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Santri Info Preview */}
-          {selectedSantri && (
-            <div className="bg-gradient-to-r from-amber-50/80 to-emerald-50/80 border border-amber-200/80 rounded-xl p-3.5 flex items-center justify-between text-xs">
-              <div>
-                <p className="font-bold text-slate-900">{selectedSantri.name}</p>
-                <p className="text-[11px] text-slate-600">
-                  Rekening: <strong className="font-mono text-amber-900">{selectedSantri.accountNumber}</strong> • Wali: {selectedSantri.guardianName}
-                </p>
-                <p className="text-[11px] text-slate-500">{selectedSantri.dormitory}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Saldo Wadiah Saat Ini</p>
-                <p className="text-base font-black text-emerald-800 font-mono-numbers">
-                  {formatRupiah(selectedSantri.balance)}
-                </p>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-mono-numbers">
-                  Setelah Setor: {formatRupiah(selectedSantri.balance + (amount > 0 ? amount : 0))}
-                </p>
-              </div>
-            </div>
-          )}
+          {/* Santri Selection via Verification Table */}
+          <SantriSelectTable
+            santriList={santriList}
+            selectedSantriId={selectedSantriId}
+            onSelectSantri={handleSelectSantri}
+            accentColor="amber"
+            estimatedDelta={amount}
+            label="Verifikasi Data Santri Penerima Titipan:"
+            placeholder="Cari nama santri, wali santri, NISN, atau no. rekening..."
+          />
 
           {/* Amount Input */}
           <div>
@@ -313,7 +212,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             <div>
               <p className="font-bold">Iqrar Akad Wadiah Yad Dhamanah:</p>
               <p className="text-[10px] text-emerald-800 leading-relaxed mt-0.5">
-                "Uang yang disetorkan ini adalah titipan murni dari wali santri kepada bendahara pesantren untuk kebutuhan uang saku santri secara disiplin (maksimal Rp 10.000 per hari, 1 kali sehari)."
+                &quot;Uang yang disetorkan ini adalah titipan murni dari wali santri kepada bendahara pesantren untuk kebutuhan uang saku santri secara disiplin (maksimal Rp 10.000 per hari, 1 kali sehari).&quot;
               </p>
             </div>
           </div>

@@ -1010,7 +1010,7 @@ export default function App() {
       />
 
       {/* Main Content Area (Offset by Sidebar width on desktop md:pl-72) */}
-      <div className="flex-1 md:pl-72 flex flex-col min-w-0 min-h-screen">
+      <div className={`flex-1 md:pl-72 flex flex-col min-w-0 min-h-screen ${receiptTrx ? 'print:hidden' : ''}`}>
         {/* Top Header Navigation Bar with Cloud Realtime status & Google Auth */}
         <TopHeader
           activeTab={activeTab}
@@ -1029,7 +1029,7 @@ export default function App() {
         />
 
         {/* View Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${receiptTrx ? 'print:hidden' : ''}`}>
           <ErrorBoundary fallbackTitle="Kendala Memuat Tampilan Akuntansi">
             {/* MENU: DASHBOARD */}
             {activeTab === 'dashboard' && (

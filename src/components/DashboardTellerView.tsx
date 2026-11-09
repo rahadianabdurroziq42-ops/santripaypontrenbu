@@ -520,9 +520,9 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                         className="w-full pl-9 pr-3 py-2 text-xs font-bold text-slate-900 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono-numbers"
                       />
                     </div>
-                    {/* Preset Nominal (Termasuk 10rb) */}
+                    {/* Preset Nominal (Termasuk 10rb dan 20rb) */}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {[10000, 25000, 50000, 75000, 100000, 150000, 200000].map((preset) => (
+                      {[10000, 20000, 50000, 75000, 100000, 150000, 200000].map((preset) => (
                         <button
                           key={preset}
                           type="button"

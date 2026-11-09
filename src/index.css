@@ -31,14 +31,26 @@
     display: none !important;
   }
 
+  /* When printing receipt, hide all app wrappers, forms, and background pages */
+  body.has-receipt-modal-active main,
+  body.has-receipt-modal-active aside,
+  body.has-receipt-modal-active header,
+  body.has-receipt-modal-active footer,
+  body:has(.print-receipt-overlay) main,
+  body:has(.print-receipt-overlay) aside,
+  body:has(.print-receipt-overlay) header,
+  body:has(.print-receipt-overlay) footer {
+    display: none !important;
+  }
+
   .print-receipt-overlay {
     position: static !important;
-    background: transparent !important;
+    background: #ffffff !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     display: block !important;
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: 300px !important;
     box-shadow: none !important;
   }
 

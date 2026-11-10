@@ -27,14 +27,14 @@ import {
   getTodayDateString 
 } from '../utils/accounting';
 import { PrintControlBar } from './PrintControlBar';
-import { ImportSantriModal, ImportedSantriItem } from './ImportSantriModal';
+import { ImportSantriModal, ImportedSantriItem, ImportMode } from './ImportSantriModal';
 
 interface SantriManagementViewProps {
   santriList: Santri[];
   transactions: Transaction[];
   pesantrenProfile: PesantrenProfile;
   onAddSantri: (newSantri: Omit<Santri, 'id' | 'accountNumber' | 'createdAt'>, initialDeposit: number) => void;
-  onImportSantriList?: (items: ImportedSantriItem[]) => void;
+  onImportSantriList?: (items: ImportedSantriItem[], mode: ImportMode) => void;
   onUpdateSantri: (updatedSantri: Santri) => void;
   onDeleteSantri: (santriId: string) => void;
   onToggleFreezeSantri: (santriId: string, freeze: boolean) => void;
@@ -235,9 +235,9 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
   };
 
   // Handle Confirm Import from Excel
-  const handleConfirmImport = (importedItems: ImportedSantriItem[]) => {
+  const handleConfirmImport = (importedItems: ImportedSantriItem[], mode: ImportMode = 'REPLACE') => {
     if (onImportSantriList) {
-      onImportSantriList(importedItems);
+      onImportSantriList(importedItems, mode);
     } else {
       importedItems.forEach((item) => {
         onAddSantri(
@@ -257,7 +257,11 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
         );
       });
     }
-    showToast(`Berhasil mengimpor ${importedItems.length} data santri baru dari Excel!`, 'success');
+    if (mode === 'REPLACE') {
+      showToast(`Berhasil mengganti 100% data santri dengan ${importedItems.length} data baru dari Excel!`, 'success');
+    } else {
+      showToast(`Berhasil menambahkan ${importedItems.length} data santri baru dari Excel!`, 'success');
+    }
   };
 
   return (
@@ -706,7 +710,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 </div>
               </div>
 
-              {/* Gender & Kelas */}
               {/* Jenis Kelamin */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin</label>

@@ -135,8 +135,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span className="font-bold">{santri.accountNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span>NISN/KELAS</span>
-                <span>{santri.nisn} ({santri.className || '-'})</span>
+                <span>NISN</span>
+                <span>{santri.nisn}</span>
               </div>
               <div className="flex justify-between">
                 <span>WALI SANTRI</span>

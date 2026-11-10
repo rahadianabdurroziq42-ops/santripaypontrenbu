@@ -491,8 +491,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           <span>NIS: <strong className="text-slate-200 font-mono">{activeSantri.nisn}</strong></span>
                           <span>•</span>
                           <span>No. Rek: <strong className="text-emerald-300 font-mono">{activeSantri.accountNumber}</strong></span>
-                          <span>•</span>
-                          <span className="text-slate-300 font-medium">{activeSantri.className}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           Wali: {activeSantri.guardianName}

@@ -72,7 +72,7 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationModal
             <div className="flex items-center justify-between">
               <span className="text-sm font-black text-slate-900">{data.santri.name}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                {data.santri.className}
+                {data.santri.gender === 'L' ? 'Ikhwan' : 'Akhwat'}
               </span>
             </div>
             <p className="text-[11px] text-slate-600">

@@ -67,7 +67,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   // State for Jajan
   const [filterMode, setFilterMode] = useState<'ALL' | 'READY' | 'ALREADY_TAKEN'>('READY');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClass, setSelectedClass] = useState('ALL');
   const [displayLayout, setDisplayLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
 
   // State for Kebutuhan Lainnya
@@ -90,19 +89,14 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   const readySantriCount = santriStatusList.filter((s) => s.eligibility.canWithdraw).length;
   const alreadyTakenCount = santriStatusList.filter((s) => s.eligibility.status === 'ALREADY_TAKEN').length;
 
-  // Classes list
-  const classesList = Array.from(new Set(santriList.map((s) => s.className).filter(Boolean)));
-
   const filteredList = santriStatusList.filter(({ santri, eligibility }) => {
     const matchesSearch =
       santri.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       santri.nisn.includes(searchTerm) ||
       santri.accountNumber.includes(searchTerm) ||
-      santri.className.toLowerCase().includes(searchTerm.toLowerCase());
+      santri.guardianName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesClass = selectedClass === 'ALL' || santri.className === selectedClass;
-
-    if (!matchesSearch || !matchesClass) return false;
+    if (!matchesSearch) return false;
 
     if (filterMode === 'READY') return eligibility.canWithdraw;
     if (filterMode === 'ALREADY_TAKEN') return eligibility.status === 'ALREADY_TAKEN';
@@ -226,7 +220,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari Nama Santri, NISN, No. Rekening, atau Kelas..."
+                  placeholder="Cari Nama Santri, NISN, No. Rekening, atau Wali..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
@@ -265,20 +259,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                 >
                   Semua ({santriList.length})
                 </button>
-
-                {/* Class Dropdown */}
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="ALL">Semua Kelas</option>
-                  {classesList.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -293,7 +273,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
                       <th className="py-2.5 px-3">Santri</th>
-                      <th className="py-2.5 px-3">Kelas & Jenjang</th>
+                      <th className="py-2.5 px-3">Wali Santri</th>
                       <th className="py-2.5 px-3">Saldo Wadiah</th>
                       <th className="py-2.5 px-3">Status Hari Ini</th>
                       <th className="py-2.5 px-3 text-center">Aksi Teller</th>
@@ -307,12 +287,10 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                           <div className="text-[10px] text-slate-500 font-mono">
                             NISN: {santri.nisn} • {santri.accountNumber}
                           </div>
-                          <div className="text-[10px] text-slate-600">
-                            Wali: <strong className="text-slate-800">{santri.guardianName}</strong>
-                          </div>
                         </td>
                         <td className="py-2.5 px-3">
-                          <div className="text-slate-800 font-bold">{santri.className}</div>
+                          <div className="text-slate-800 font-medium">{santri.guardianName}</div>
+                          <div className="text-[10px] text-slate-500">{santri.guardianPhone || '-'}</div>
                         </td>
                         <td className="py-2.5 px-3 font-bold text-emerald-700 font-mono-numbers">
                           {formatRupiah(santri.balance)}
@@ -384,7 +362,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                           {formatRupiah(santri.balance)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-600 font-semibold">{santri.className}</p>
+                      <p className="text-[11px] text-slate-600 font-medium">Wali: {santri.guardianName}</p>
                     </div>
 
                     <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">

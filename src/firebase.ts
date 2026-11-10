@@ -269,4 +269,49 @@ export async function seedInitialDataToCloud(
   } catch (error) {
     console.error('Error during cloud seeding check:', error);
   }
+}// Bulk replace entire santri collection in Cloud Firestore
+export async function replaceAllSantriInCloud(
+  newSantriList: Santri[],
+  newInitialTransactions: Transaction[] = []
+): Promise<void> {
+  try {
+    // 1. Fetch all existing santri documents to delete them
+    const existingSnap = await getDocs(collection(db, 'santri'));
+    const deleteBatch = writeBatch(db);
+    existingSnap.forEach((docSnap) => {
+      deleteBatch.delete(docSnap.ref);
+    });
+    await deleteBatch.commit();
+
+    // 2. Insert the new imported santri in batch (chunked by 450 to respect Firestore limit of 500)
+    const chunkSize = 400;
+    for (let i = 0; i < newSantriList.length; i += chunkSize) {
+      const chunk = newSantriList.slice(i, i + chunkSize);
+      const insertBatch = writeBatch(db);
+      for (const s of chunk) {
+        const cleaned = Object.fromEntries(
+          Object.entries(s).filter(([_, v]) => v !== undefined)
+        );
+        insertBatch.set(doc(db, 'santri', s.id), cleaned);
+      }
+      await insertBatch.commit();
+    }
+
+    // 3. Save any initial deposit transactions
+    if (newInitialTransactions.length > 0) {
+      for (let i = 0; i < newInitialTransactions.length; i += chunkSize) {
+        const chunk = newInitialTransactions.slice(i, i + chunkSize);
+        const trxBatch = writeBatch(db);
+        for (const t of chunk) {
+          const cleaned = Object.fromEntries(
+            Object.entries(t).filter(([_, v]) => v !== undefined)
+          );
+          trxBatch.set(doc(db, 'transactions', t.id), cleaned);
+        }
+        await trxBatch.commit();
+      }
+    }
+  } catch (error) {
+    console.error('Error replacing santri in cloud:', error);
+  }
 }

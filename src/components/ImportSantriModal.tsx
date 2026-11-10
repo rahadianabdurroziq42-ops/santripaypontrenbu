@@ -10,7 +10,8 @@ import {
   AlertCircle, 
   Check, 
   Trash2,
-  Users
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { Santri } from '../types/finance';
 import { formatRupiah } from '../utils/accounting';
@@ -30,11 +31,13 @@ export interface ImportedSantriItem {
   selected: boolean;
 }
 
+export type ImportMode = 'REPLACE' | 'APPEND';
+
 interface ImportSantriModalProps {
   isOpen: boolean;
   onClose: () => void;
   existingSantriList: Santri[];
-  onConfirmImport: (importedItems: ImportedSantriItem[]) => void;
+  onConfirmImport: (importedItems: ImportedSantriItem[], mode: ImportMode) => void;
 }
 
 export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
@@ -48,6 +51,7 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
   const [parsedRows, setParsedRows] = useState<ImportedSantriItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<ImportMode>('REPLACE');
 
   if (!isOpen) return null;
 
@@ -169,6 +173,7 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
         const idxLimit = findColIndex(['limit jajan', 'limit harian', 'limit']);
 
         const existingNisnSet = new Set(existingSantriList.map((s) => s.nisn.trim().toLowerCase()));
+        const fileSeenNisn = new Set<string>();
 
         const parsed: ImportedSantriItem[] = [];
 
@@ -202,15 +207,24 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
           let validationError: string | undefined = undefined;
           let isDuplicateNisn = false;
 
+          const nisnKey = rawNisn.toLowerCase();
+
           if (!rawName) {
             isValid = false;
             validationError = 'Nama santri wajib diisi';
           } else if (!rawNisn) {
             isValid = false;
             validationError = 'NISN santri wajib diisi';
-          } else if (existingNisnSet.has(rawNisn.toLowerCase())) {
+          } else if (fileSeenNisn.has(nisnKey)) {
+            isDuplicateNisn = true;
+            validationError = 'NISN ganda dalam file Excel yang sama';
+          } else if (importMode === 'APPEND' && existingNisnSet.has(nisnKey)) {
             isDuplicateNisn = true;
             validationError = 'NISN sudah terdaftar di sistem';
+          }
+
+          if (rawNisn) {
+            fileSeenNisn.add(nisnKey);
           }
 
           const gender: 'L' | 'P' = rawGenderStr.startsWith('P') ? 'P' : 'L';
@@ -281,7 +295,7 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
   const handleConfirm = () => {
     const toImport = parsedRows.filter((r) => r.selected);
     if (toImport.length === 0) return;
-    onConfirmImport(toImport);
+    onConfirmImport(toImport, importMode);
     handleReset();
     onClose();
   };
@@ -441,6 +455,64 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
                 </div>
               </div>
 
+              {/* Mode Impor: Ganti Total (100%) vs Tambahkan Data */}
+              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/70 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <span>Mode Pemrosesan Impor Data:</span>
+                  </span>
+                  <span className="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                    {importMode === 'REPLACE' ? 'Ganti Total 100%' : 'Gabungkan / Tambah'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('REPLACE')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      importMode === 'REPLACE'
+                        ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/30 shadow-xs'
+                        : 'border-slate-200 bg-white/70 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                        importMode === 'REPLACE' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-400'
+                      }`}>
+                        {importMode === 'REPLACE' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </span>
+                      <strong className="text-xs text-slate-900">Ganti 100% Seluruh Data (Disarankan)</strong>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 pl-5.5 leading-relaxed">
+                      Menghapus data contoh/lama dan menggantinya 100% murni dengan data baru dari file Excel ini.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('APPEND')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      importMode === 'APPEND'
+                        ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/30 shadow-xs'
+                        : 'border-slate-200 bg-white/70 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                        importMode === 'APPEND' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-400'
+                      }`}>
+                        {importMode === 'APPEND' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </span>
+                      <strong className="text-xs text-slate-900">Tambahkan ke Data yang Sudah Ada</strong>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 pl-5.5 leading-relaxed">
+                      Mempertahankan data santri yang telah tersimpan di sistem dan menyisipkan data baru ini.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               {/* Data Table */}
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs max-h-72 overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -550,10 +622,14 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
                   </div>
                   <div>
                     <span className="text-xs font-bold text-slate-900 block">
-                      Ringkasan Impor Rekening Wadiah Santri:
+                      {importMode === 'REPLACE' ? 'Pembaruan Total Data Santri (100% Ganti Data):' : 'Penambahan Data Santri Baru:'}
                     </span>
                     <span className="text-[11px] text-slate-600">
-                      <strong>{selectedCount}</strong> data santri baru akan didaftarkan dengan nomor rekening otomatis.
+                      {importMode === 'REPLACE' ? (
+                        <>Seluruh <strong>{existingSantriList.length}</strong> data santri lama/sample akan digantikan 100% dengan <strong>{selectedCount}</strong> data baru dari Excel.</>
+                      ) : (
+                        <><strong>{selectedCount}</strong> data santri baru akan ditambahkan ke daftar yang sudah ada.</>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -589,10 +665,18 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
               type="button"
               disabled={selectedCount === 0 || isProcessing}
               onClick={handleConfirm}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center gap-2 cursor-pointer active:scale-98"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-98 ${
+                importMode === 'REPLACE'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20'
+                  : 'bg-slate-900 hover:bg-slate-800 text-white'
+              }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Proses Impor {selectedCount} Santri Baru</span>
+              <span>
+                {importMode === 'REPLACE'
+                  ? `Ganti 100% & Impor ${selectedCount} Santri Baru`
+                  : `Tambahkan ${selectedCount} Santri Baru`}
+              </span>
             </button>
           )}
         </div>

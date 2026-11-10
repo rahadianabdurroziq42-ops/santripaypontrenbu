@@ -31,7 +31,8 @@ import {
   updateSantriBalanceInCloud,
   saveTransactionToCloud,
   saveProfileToCloud,
-  seedInitialDataToCloud
+  seedInitialDataToCloud,
+  replaceAllSantriInCloud,
 } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -46,7 +47,7 @@ import { NeracaView } from './components/NeracaView';
 import { RekeningKoranView } from './components/RekeningKoranView';
 import { LaporanRekapView } from './components/LaporanRekapView';
 import { SantriManagementView } from './components/SantriManagementView';
-import { ImportedSantriItem } from './components/ImportSantriModal';
+import { ImportedSantriItem, ImportMode } from './components/ImportSantriModal';
 import { JurnalUmumView } from './components/JurnalUmumView';
 import { ProfilPesantrenView } from './components/ProfilPesantrenView';
 import { BukuKasUmumView } from './components/BukuKasUmumView';
@@ -903,11 +904,11 @@ export default function App() {
     }
   };
 
-  // Batch Import Santri Handler from Excel
-  const handleImportSantriList = (items: ImportedSantriItem[]) => {
+  // Batch Import Santri Handler from Excel (supports 100% REPLACE or APPEND)
+  const handleImportSantriList = (items: ImportedSantriItem[], mode: ImportMode = 'REPLACE') => {
     const newSantriList: Santri[] = [];
     const newTrxList: Transaction[] = [];
-    let currentIndex = santriList.length;
+    let currentIndex = mode === 'REPLACE' ? 0 : santriList.length;
 
     items.forEach((item, index) => {
       currentIndex++;
@@ -921,7 +922,6 @@ export default function App() {
         nisn: item.nisn,
         name: item.name,
         gender: item.gender,
-        className: item.className,
         guardianName: item.guardianName,
         guardianPhone: item.guardianPhone,
         guardianAddress: item.guardianAddress,
@@ -933,7 +933,6 @@ export default function App() {
       };
 
       newSantriList.push(newSantri);
-      saveSantriToCloud(newSantri).catch((e) => console.error('Cloud add imported santri error:', e));
 
       if (initialDeposit > 0) {
         const depositTrx: Transaction = {
@@ -955,13 +954,33 @@ export default function App() {
           category: 'Setoran Titipan Wali',
         };
         newTrxList.push(depositTrx);
-        saveTransactionToCloud(depositTrx).catch((e) => console.error('Cloud deposit trx error:', e));
       }
     });
 
-    setSantriList((prev) => [...prev, ...newSantriList]);
-    if (newTrxList.length > 0) {
-      setTransactions((prev) => [...newTrxList, ...prev]);
+    if (mode === 'REPLACE') {
+      // 100% GANTI TOTAL: Hapus seluruh data sample/lama, ganti total dengan hasil impor
+      setSantriList(newSantriList);
+      if (newSantriList.length > 0) {
+        setSelectedSantriId(newSantriList[0].id);
+      }
+      if (newTrxList.length > 0) {
+        // Ganti transaksi atau sisipkan transaksi setoran awal dari impor baru
+        setTransactions(newTrxList);
+      } else {
+        setTransactions([]);
+      }
+      // Sinkronkan pergantian total ke Cloud Firestore
+      replaceAllSantriInCloud(newSantriList, newTrxList).catch((e) =>
+        console.error('Cloud replace santri error:', e)
+      );
+    } else {
+      // APPEND: Tambahkan ke data yang sudah ada
+      setSantriList((prev) => [...prev, ...newSantriList]);
+      if (newTrxList.length > 0) {
+        setTransactions((prev) => [...newTrxList, ...prev]);
+        newTrxList.forEach((t) => saveTransactionToCloud(t).catch((e) => console.error(e)));
+      }
+      newSantriList.forEach((s) => saveSantriToCloud(s).catch((e) => console.error(e)));
     }
   };
 

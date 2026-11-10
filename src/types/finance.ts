@@ -16,8 +16,8 @@ export interface Santri {
   accountNumber: string; // Nomor Rekening Wadiah Santri (e.g. 501.2026.001)
   name: string;
   gender: 'L' | 'P';
-  dormitory: string;     // e.g., 'Asrama Abu Bakar - Kamar 04'
-  className: string;     // e.g., 'Kelas 2 Aliyah / Wustha'
+  dormitory?: string;    // Opsional / dihilangkan
+  className?: string;    // Opsional / dihilangkan
   guardianName: string;  // Nama Ayah / Ibu / Wali
   guardianPhone: string;
   guardianAddress: string;
@@ -92,21 +92,40 @@ export interface PesantrenProfile {
 export interface NeracaData {
   asOfDate: string;
   aktiva: {
-    kasTunaiTitipan: number;      // Kas fisik titipan di brankas bendahara
-    kasBankTitipan: number;       // Kas titipan di rekening bank (Transfer Via Bank)
-    totalAktiva: number;          // Total kas titipan yang dikelola bendahara
+    // 1. Akun Kelolaan Bendahara (Titipan Wadiah Uang Saku)
+    kasTunaiTitipan: number;        // 1-1000 Kas Fisik Tunai Titipan (Bendahara)
+    kasBankTitipan: number;         // 1-1010 Kas Rekening Bank Titipan (Bendahara)
+    totalAktivaBendahara: number;   // Subtotal Aktiva Bendahara
+    // 2. Akun Kelolaan Pengurus (Dana SPP Pesantren)
+    kasTunaiSPP: number;            // 1-1100 Kas Fisik Tunai SPP (Pengurus)
+    kasBankSPP: number;             // 1-1110 Kas Rekening Bank SPP (Pengurus)
+    totalAktivaPengurus: number;    // Subtotal Aktiva Pengurus
+    // Total Terpadu
+    totalAktiva: number;
   };
   pasiva: {
-    kewajibanTitipanWadiah: number; // Total saldo titipan uang saku milik seluruh santri
-    totalPasiva: number;            // Total kewajiban titipan bendahara kepada santri & wali
+    // 1. Tanggung Jawab Bendahara (Kewajiban Titipan Wadiah)
+    kewajibanTitipanWadiah: number; // 2-1000 Simpanan Wadiah Santri
+    totalPasivaBendahara: number;   // Subtotal Pasiva Bendahara
+    // 2. Tanggung Jawab Pengurus (Dana SPP Syahriah)
+    danaPenerimaanSPP: number;      // 2-2000 Dana Penerimaan & Pengelolaan SPP
+    totalPasivaPengurus: number;    // Subtotal Pasiva Pengurus
+    // Total Terpadu
+    totalPasiva: number;
   };
   isBalanced: boolean;
   discrepancy: number;
   totalSantriWithBalance: number;
-  totalPenarikanJajan: number;      // Total akumulasi penarikan uang jajan santri
-  countPenarikanJajan: number;      // Jumlah transaksi penarikan jajan santri
-  totalSetoranTitipan: number;      // Total akumulasi titipan uang saku masuk dari wali
+  // Metrik Kelolaan Bendahara
+  totalPenarikanJajan: number;      // Total penarikan jajan & kebutuhan santri
+  countPenarikanJajan: number;      // Jumlah transaksi penarikan santri
+  totalSetoranTitipan: number;      // Total setoran uang saku titipan
   countSetoranTitipan: number;      // Jumlah transaksi setoran titipan
+  // Metrik Kelolaan Pengurus
+  totalSetoranSPP: number;          // Total setoran pembayaran SPP
+  countSetoranSPP: number;          // Jumlah transaksi setoran SPP
+  totalPenarikanSPP: number;        // Total penyaluran/pengeluaran dana SPP
+  countPenarikanSPP: number;        // Jumlah transaksi penyaluran SPP
 }
 
 export interface AuthUser {

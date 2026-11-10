@@ -36,29 +36,19 @@ export const QuickTellerModal: React.FC<QuickTellerModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
   const [notes, setNotes] = useState('Uang Jajan Harian');
-  const [activeDormitoryFilter, setActiveDormitoryFilter] = useState('ALL');
 
   if (!isOpen) return null;
 
   const todayStr = getTodayDateString();
 
-  // Extract unique dormitories for quick filter
-  const dormitories = Array.from(
-    new Set(santriList.map((s) => s.dormitory.split(' - ')[0]))
-  );
-
   const filteredSantri = santriList.filter((s) => {
-    const matchesSearch =
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const q = searchTerm.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
       s.nisn.includes(searchTerm) ||
       s.accountNumber.includes(searchTerm) ||
-      s.dormitory.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesDorm =
-      activeDormitoryFilter === 'ALL' ||
-      s.dormitory.startsWith(activeDormitoryFilter);
-
-    return matchesSearch && matchesDorm;
+      s.guardianName.toLowerCase().includes(q)
+    );
   });
 
   const selectedSantri = santriList.find((s) => s.id === selectedSantriId) || santriList[0];
@@ -110,38 +100,11 @@ export const QuickTellerModal: React.FC<QuickTellerModalProps> = ({
                 <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari Nama / NISN / No Rek / Asrama..."
+                  placeholder="Cari Nama / NISN / No Rek / Wali..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
                 />
-              </div>
-
-              {/* Dormitory quick tags */}
-              <div className="flex space-x-1 overflow-x-auto mt-2 pt-1 pb-1 scrollbar-none text-[11px]">
-                <button
-                  onClick={() => setActiveDormitoryFilter('ALL')}
-                  className={`px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer ${
-                    activeDormitoryFilter === 'ALL'
-                      ? 'bg-emerald-800 text-white font-semibold'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
-                >
-                  Semua
-                </button>
-                {dormitories.map((dorm) => (
-                  <button
-                    key={dorm}
-                    onClick={() => setActiveDormitoryFilter(dorm)}
-                    className={`px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer ${
-                      activeDormitoryFilter === dorm
-                        ? 'bg-emerald-800 text-white font-semibold'
-                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
-                  >
-                    {dorm.replace('Asrama ', '')}
-                  </button>
-                ))}
               </div>
             </div>
 
@@ -256,8 +219,8 @@ export const QuickTellerModal: React.FC<QuickTellerModalProps> = ({
                   {/* Metadata Row */}
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-emerald-800/60 text-xs">
                     <div>
-                      <p className="text-[10px] text-slate-400">Asrama & Kamar</p>
-                      <p className="font-semibold text-slate-200">{selectedSantri.dormitory}</p>
+                      <p className="text-[10px] text-slate-400">Nomor Induk / NISN</p>
+                      <p className="font-semibold text-slate-200">{selectedSantri.nisn}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400">Wali Santri (Pemberi Titipan)</p>

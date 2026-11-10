@@ -1,14 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { 
   HandCoins, 
-  Wallet, 
-  ShieldCheck, 
   Lock, 
   CheckCircle2, 
   AlertTriangle, 
   Search,
-  Coins,
-  Building2,
   Table,
   LayoutGrid,
   ShoppingBag,
@@ -16,8 +12,6 @@ import {
   Stethoscope,
   Shirt,
   Sparkles,
-  Printer,
-  History,
   MinusCircle
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
@@ -50,7 +44,7 @@ const KEBUTUHAN_CATEGORIES = [
   { id: 'Kitab & Buku', label: 'Kitab & Buku Pelajaran', defaultNote: 'Pembelian kitab kuning & buku pelajaran', icon: BookOpen },
   { id: 'Kesehatan & Obat', label: 'Kesehatan & Obat (UKS / Berobat)', defaultNote: 'Biaya berobat / obat santri', icon: Stethoscope },
   { id: 'Seragam & Pakaian', label: 'Seragam, Jilbab & Pakaian', defaultNote: 'Pembelian seragam / jilbab / sarung santri', icon: Shirt },
-  { id: 'Perlengkapan Asrama', label: 'Perlengkapan Asrama & Mandi', defaultNote: 'Perlengkapan mandi & kebutuhan kamar asrama', icon: ShoppingBag },
+  { id: 'Perlengkapan Mandi & Pribadi', label: 'Perlengkapan Mandi & Pribadi', defaultNote: 'Perlengkapan mandi & kebutuhan pribadi santri', icon: ShoppingBag },
   { id: 'Laundry & Kebersihan', label: 'Laundry & Kebersihan', defaultNote: 'Biaya cuci pakaian laundry santri', icon: Sparkles },
   { id: 'Uang Saku Pulang / Izin', label: 'Uang Saku Pulang / Izin Libur', defaultNote: 'Uang saku perjalanan pulang / izin libur', icon: HandCoins },
   { id: 'Kebutuhan Lainnya', label: 'Keperluan Mendesak Lainnya', defaultNote: 'Keperluan khusus mendesak santri', icon: MinusCircle },
@@ -59,13 +53,13 @@ const KEBUTUHAN_CATEGORIES = [
 export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   santriList,
   transactions,
-  pesantrenProfile,
-  totalWadiah,
-  onOpenTellerForSantri,
+  pesantrenProfile: _pesantrenProfile,
+  totalWadiah: _totalWadiah,
+  onOpenTellerForSantri: _onOpenTellerForSantri,
   onQuickDispense,
   onViewStatement,
   onProcessCustomWithdrawal,
-  onViewReceipt,
+  onViewReceipt: _onViewReceipt,
 }) => {
   // Main sub-menu view mode: 'JAJAN' or 'KEBUTUHAN_LAIN'
   const [activeMode, setActiveMode] = useState<'JAJAN' | 'KEBUTUHAN_LAIN'>('JAJAN');
@@ -73,7 +67,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   // State for Jajan
   const [filterMode, setFilterMode] = useState<'ALL' | 'READY' | 'ALREADY_TAKEN'>('READY');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDormitory, setSelectedDormitory] = useState('ALL');
+  const [selectedClass, setSelectedClass] = useState('ALL');
   const [displayLayout, setDisplayLayout] = useState<'TABLE' | 'CARDS'>('TABLE');
 
   // State for Kebutuhan Lainnya
@@ -83,25 +77,6 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   const [customNotes, setCustomNotes] = useState<string>('Pembelian kitab pelajaran semester baru');
 
   const todayStr = getTodayDateString();
-
-  // Transactions today
-  const todayTransactions = transactions.filter((t) => t.date === todayStr);
-  const todayWithdrawals = todayTransactions.filter((t) => t.type === 'WITHDRAWAL_JAJAN');
-  const totalJajanToday = todayWithdrawals.reduce((sum, t) => sum + t.amount, 0);
-
-  // Special / other withdrawals history
-  const otherWithdrawals = useMemo(() => {
-    return transactions.filter(
-      (t) =>
-        t.type === 'SPECIAL_DISBURSEMENT' ||
-        t.type === 'WITHDRAWAL_OTHER' ||
-        (t.category && t.category !== 'Setoran Titipan Wali' && t.category !== 'Uang Jajan Santri' && !t.category.includes('SPP'))
-    );
-  }, [transactions]);
-
-  const totalOtherWithdrawals = useMemo(() => {
-    return otherWithdrawals.reduce((sum, t) => sum + t.amount, 0);
-  }, [otherWithdrawals]);
 
   // Compute status for all santri (Jajan)
   const santriStatusList = santriList.map((santri) => {
@@ -115,19 +90,19 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
   const readySantriCount = santriStatusList.filter((s) => s.eligibility.canWithdraw).length;
   const alreadyTakenCount = santriStatusList.filter((s) => s.eligibility.status === 'ALREADY_TAKEN').length;
 
-  // Dormitories list
-  const dormitories = Array.from(new Set(santriList.map((s) => s.dormitory.split(' - ')[0])));
+  // Classes list
+  const classesList = Array.from(new Set(santriList.map((s) => s.className).filter(Boolean)));
 
   const filteredList = santriStatusList.filter(({ santri, eligibility }) => {
     const matchesSearch =
       santri.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       santri.nisn.includes(searchTerm) ||
       santri.accountNumber.includes(searchTerm) ||
-      santri.dormitory.toLowerCase().includes(searchTerm.toLowerCase());
+      santri.className.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesDorm = selectedDormitory === 'ALL' || santri.dormitory.startsWith(selectedDormitory);
+    const matchesClass = selectedClass === 'ALL' || santri.className === selectedClass;
 
-    if (!matchesSearch || !matchesDorm) return false;
+    if (!matchesSearch || !matchesClass) return false;
 
     if (filterMode === 'READY') return eligibility.canWithdraw;
     if (filterMode === 'ALREADY_TAKEN') return eligibility.status === 'ALREADY_TAKEN';
@@ -251,7 +226,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari Nama Santri, NISN, No. Rekening, atau Asrama..."
+                  placeholder="Cari Nama Santri, NISN, No. Rekening, atau Kelas..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
@@ -291,16 +266,16 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                   Semua ({santriList.length})
                 </button>
 
-                {/* Dormitory Dropdown */}
+                {/* Class Dropdown */}
                 <select
-                  value={selectedDormitory}
-                  onChange={(e) => setSelectedDormitory(e.target.value)}
-                  className="bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="ALL">Semua Asrama</option>
-                  {dormitories.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
+                  <option value="ALL">Semua Kelas</option>
+                  {classesList.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
                     </option>
                   ))}
                 </select>
@@ -318,7 +293,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
                       <th className="py-2.5 px-3">Santri</th>
-                      <th className="py-2.5 px-3">Asrama & Kelas</th>
+                      <th className="py-2.5 px-3">Kelas & Jenjang</th>
                       <th className="py-2.5 px-3">Saldo Wadiah</th>
                       <th className="py-2.5 px-3">Status Hari Ini</th>
                       <th className="py-2.5 px-3 text-center">Aksi Teller</th>
@@ -337,8 +312,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                           </div>
                         </td>
                         <td className="py-2.5 px-3">
-                          <div className="text-slate-800 font-medium">{santri.dormitory}</div>
-                          <div className="text-[10px] text-slate-500">{santri.className}</div>
+                          <div className="text-slate-800 font-bold">{santri.className}</div>
                         </td>
                         <td className="py-2.5 px-3 font-bold text-emerald-700 font-mono-numbers">
                           {formatRupiah(santri.balance)}
@@ -410,7 +384,7 @@ export const DashboardTellerView: React.FC<DashboardTellerViewProps> = ({
                           {formatRupiah(santri.balance)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-600">{santri.dormitory}</p>
+                      <p className="text-[11px] text-slate-600 font-semibold">{santri.className}</p>
                     </div>
 
                     <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">

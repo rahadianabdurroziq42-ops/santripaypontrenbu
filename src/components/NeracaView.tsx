@@ -16,7 +16,11 @@ import {
   ArrowDownLeft, 
   BookOpen, 
   Layers, 
-  ArrowUpRight
+  ArrowUpRight,
+  UserCheck,
+  GraduationCap,
+  Building2,
+  Users
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
 import { 
@@ -39,8 +43,9 @@ interface NeracaViewProps {
 
 type NeracaFormat = 'SKONTRO' | 'STAFFEL';
 type ViewMode = 'NERACA' | 'BUKU_PEMBANTU' | 'SEMUA';
-type AccountKey = 'ALL' | '1-1000' | '1-1010' | '2-1000';
+type AccountKey = 'ALL' | '1-1000' | '1-1010' | '2-1000' | '1-1100' | '1-1110' | '2-2000';
 type MutationFilter = 'ALL' | 'SETORAN' | 'PENARIKAN';
+type UserFilter = 'ALL' | 'PENGURUS' | 'BENDAHARA';
 
 interface AccountLedgerItem {
   id: string;
@@ -57,6 +62,20 @@ interface AccountLedgerItem {
   runningBalance: number;
   method: string;
   tellerName: string;
+  userRole: 'PENGURUS' | 'BENDAHARA';
+}
+
+interface AccountGroup {
+  code: string;
+  name: string;
+  typeLabel: string;
+  category: 'AKTIVA' | 'PASIVA';
+  userRole: 'PENGURUS' | 'BENDAHARA';
+  description: string;
+  totalIn: number;
+  totalOut: number;
+  finalBalance: number;
+  items: AccountLedgerItem[];
 }
 
 export const NeracaView: React.FC<NeracaViewProps> = ({
@@ -67,11 +86,12 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
   const [formatType, setFormatType] = useState<NeracaFormat>('SKONTRO');
   const [viewMode, setViewMode] = useState<ViewMode>('SEMUA');
   const [asOfDate, setAsOfDate] = useState<string>(getTodayDateString());
+  const [selectedUserFilter, setSelectedUserFilter] = useState<UserFilter>('ALL');
   const [selectedAccount, setSelectedAccount] = useState<AccountKey>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [mutationFilter, setMutationFilter] = useState<MutationFilter>('ALL');
 
-  // Hitung Neraca Saldo
+  // Hitung Neraca Saldo Terpadu
   const neraca = calculateNeraca(santriList, transactions, asOfDate);
 
   // Transaksi relevan sampai dengan asOfDate, diurutkan kronologis
@@ -87,16 +107,30 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
       });
   }, [transactions, asOfDate]);
 
-  // 1. PENCATATAN TRANSAKSI AKUN 1-1000: KAS FISIK TUNAI BENDAHARA
-  const ledgerKasTunai = useMemo(() => {
+  // Helper identifikasi user pelaksana transaksi
+  const getUserRole = (trx: Transaction): 'PENGURUS' | 'BENDAHARA' => {
+    if (trx.type === 'DEPOSIT_SPP' || trx.type === 'WITHDRAWAL_SPP' || (trx.category && trx.category.includes('SPP'))) {
+      return 'PENGURUS';
+    }
+    return 'BENDAHARA';
+  };
+
+  // ==========================================
+  // KELOMPOK AKUN KELOLAAN BENDAHARA (TITIPAN WADIAH)
+  // ==========================================
+
+  // 1. Akun 1-1000: Kas Fisik Tunai Titipan (Bendahara)
+  const ledgerKasTunaiBendahara = useMemo<AccountGroup>(() => {
     let balance = 0;
     let totalIn = 0;
     let totalOut = 0;
     const items: AccountLedgerItem[] = [];
 
-    const cashTrx = relevantTrx.filter((t) => !(t.method || '').includes('BANK'));
+    const cashWadiahTrx = relevantTrx.filter(
+      (t) => getUserRole(t) === 'BENDAHARA' && !(t.method || '').includes('BANK')
+    );
 
-    cashTrx.forEach((t) => {
+    cashWadiahTrx.forEach((t) => {
       const isDeposit = isCreditTransaction(t.type);
       const isWithdrawal = isDebitTransaction(t.type);
       const amtIn = isDeposit ? t.amount : 0;
@@ -125,31 +159,36 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
         runningBalance: balance,
         method: t.method,
         tellerName: t.tellerName,
+        userRole: 'BENDAHARA',
       });
     });
 
     return {
       code: '1-1000',
-      name: 'Kas Fisik Tunai Bendahara',
-      typeLabel: 'Aset Lancar (Kas Tunai)',
+      name: 'Kas Fisik Tunai Titipan (Loket Bendahara)',
+      typeLabel: 'Aset Lancar Kas Tunai',
       category: 'AKTIVA',
+      userRole: 'BENDAHARA',
+      description: 'Kas fisik uang tunai di brankas bendahara untuk pencairan jajan & kebutuhan harian santri',
       totalIn,
       totalOut,
-      finalBalance: balance,
+      finalBalance: neraca.aktiva.kasTunaiTitipan,
       items,
     };
-  }, [relevantTrx]);
+  }, [relevantTrx, neraca.aktiva.kasTunaiTitipan]);
 
-  // 2. PENCATATAN TRANSAKSI AKUN 1-1010: KAS REKENING BANK SYARIAH (TRANSFER)
-  const ledgerKasBank = useMemo(() => {
+  // 2. Akun 1-1010: Kas Rekening Bank Titipan (Bendahara)
+  const ledgerKasBankBendahara = useMemo<AccountGroup>(() => {
     let balance = 0;
     let totalIn = 0;
     let totalOut = 0;
     const items: AccountLedgerItem[] = [];
 
-    const bankTrx = relevantTrx.filter((t) => (t.method || '').includes('BANK'));
+    const bankWadiahTrx = relevantTrx.filter(
+      (t) => getUserRole(t) === 'BENDAHARA' && (t.method || '').includes('BANK')
+    );
 
-    bankTrx.forEach((t) => {
+    bankWadiahTrx.forEach((t) => {
       const isDeposit = isCreditTransaction(t.type);
       const isWithdrawal = isDebitTransaction(t.type);
       const amtIn = isDeposit ? t.amount : 0;
@@ -178,29 +217,34 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
         runningBalance: balance,
         method: t.method,
         tellerName: t.tellerName,
+        userRole: 'BENDAHARA',
       });
     });
 
     return {
       code: '1-1010',
-      name: 'Kas Rekening Bank Syariah (Transfer)',
-      typeLabel: 'Aset Lancar (Bank Wadiah)',
+      name: 'Kas Rekening Bank Titipan (Transfer Bendahara)',
+      typeLabel: 'Aset Lancar Bank Wadiah',
       category: 'AKTIVA',
+      userRole: 'BENDAHARA',
+      description: 'Kas titipan uang saku dari orang tua yang disetor melalui transfer perbankan',
       totalIn,
       totalOut,
-      finalBalance: balance,
+      finalBalance: neraca.aktiva.kasBankTitipan,
       items,
     };
-  }, [relevantTrx]);
+  }, [relevantTrx, neraca.aktiva.kasBankTitipan]);
 
-  // 3. PENCATATAN TRANSAKSI AKUN 2-1000: KEWAJIBAN SIMPANAN WADIAH SANTRI
-  const ledgerWadiah = useMemo(() => {
+  // 3. Akun 2-1000: Kewajiban Simpanan Wadiah Santri (Bendahara)
+  const ledgerWadiahBendahara = useMemo<AccountGroup>(() => {
     let balance = 0;
     let totalIn = 0;
     let totalOut = 0;
     const items: AccountLedgerItem[] = [];
 
-    relevantTrx.forEach((t) => {
+    const wadiahTrx = relevantTrx.filter((t) => getUserRole(t) === 'BENDAHARA');
+
+    wadiahTrx.forEach((t) => {
       const isDeposit = isCreditTransaction(t.type);
       const isWithdrawal = isDebitTransaction(t.type);
       const amtIn = isDeposit ? t.amount : 0;
@@ -229,44 +273,256 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
         runningBalance: balance,
         method: t.method,
         tellerName: t.tellerName,
+        userRole: 'BENDAHARA',
       });
     });
 
     return {
       code: '2-1000',
-      name: 'Kewajiban Simpanan Wadiah Santri',
-      typeLabel: 'Kewajiban Titipan (Hak Santri)',
+      name: 'Kewajiban Simpanan Wadiah Santri (Hak Uang Saku)',
+      typeLabel: 'Kewajiban Wadiah Yad Dhamanah',
       category: 'PASIVA',
+      userRole: 'BENDAHARA',
+      description: 'Hutang amanah titipan uang saku seluruh santri aktif yang siap dicairkan untuk kebutuhan harian',
       totalIn,
       totalOut,
-      finalBalance: balance,
+      finalBalance: neraca.pasiva.kewajibanTitipanWadiah,
       items,
     };
-  }, [relevantTrx]);
+  }, [relevantTrx, neraca.pasiva.kewajibanTitipanWadiah]);
 
-  // List of accounts for rendering
-  const allAccountLedgers = useMemo(() => {
-    const list = [ledgerKasTunai, ledgerKasBank, ledgerWadiah];
-    if (selectedAccount === 'ALL') return list;
-    return list.filter((a) => a.code === selectedAccount);
-  }, [selectedAccount, ledgerKasTunai, ledgerKasBank, ledgerWadiah]);
+  // ==========================================
+  // KELOMPOK AKUN KELOLAAN PENGURUS (DANA SPP PESANTREN)
+  // ==========================================
 
-  // Helper filter search
+  // 4. Akun 1-1100: Kas Fisik Tunai SPP (Pengurus)
+  const ledgerKasTunaiPengurus = useMemo<AccountGroup>(() => {
+    let balance = 0;
+    let totalIn = 0;
+    let totalOut = 0;
+    const items: AccountLedgerItem[] = [];
+
+    const cashSPPTrx = relevantTrx.filter(
+      (t) => getUserRole(t) === 'PENGURUS' && !(t.method || '').includes('BANK')
+    );
+
+    cashSPPTrx.forEach((t) => {
+      const isDeposit = t.type === 'DEPOSIT_SPP';
+      const isWithdrawal = t.type === 'WITHDRAWAL_SPP';
+      const amtIn = isDeposit ? t.amount : 0;
+      const amtOut = isWithdrawal ? t.amount : 0;
+
+      if (isDeposit) {
+        balance += amtIn;
+        totalIn += amtIn;
+      } else if (isWithdrawal) {
+        balance -= amtOut;
+        totalOut += amtOut;
+      }
+
+      items.push({
+        id: t.id,
+        date: t.date,
+        time: t.time || '08:00:00',
+        transactionNo: t.transactionNo,
+        santriName: t.santriName,
+        accountNumber: t.accountNumber,
+        description: t.notes || 'Pembayaran SPP Syahriah Bulanan (Tunai TU)',
+        notes: t.notes,
+        isDeposit,
+        amountIn: amtIn,
+        amountOut: amtOut,
+        runningBalance: balance,
+        method: t.method,
+        tellerName: t.tellerName,
+        userRole: 'PENGURUS',
+      });
+    });
+
+    return {
+      code: '1-1100',
+      name: 'Kas Fisik Tunai Dana SPP (Kantor TU Pengurus)',
+      typeLabel: 'Aset Lancar Kas SPP',
+      category: 'AKTIVA',
+      userRole: 'PENGURUS',
+      description: 'Penerimaan uang tunai pembayaran SPP syahriah bulanan santri di kantor tata usaha pengurus',
+      totalIn,
+      totalOut,
+      finalBalance: neraca.aktiva.kasTunaiSPP,
+      items,
+    };
+  }, [relevantTrx, neraca.aktiva.kasTunaiSPP]);
+
+  // 5. Akun 1-1110: Kas Rekening Bank Penerimaan SPP (Pengurus)
+  const ledgerKasBankPengurus = useMemo<AccountGroup>(() => {
+    let balance = 0;
+    let totalIn = 0;
+    let totalOut = 0;
+    const items: AccountLedgerItem[] = [];
+
+    const bankSPPTrx = relevantTrx.filter(
+      (t) => getUserRole(t) === 'PENGURUS' && (t.method || '').includes('BANK')
+    );
+
+    bankSPPTrx.forEach((t) => {
+      const isDeposit = t.type === 'DEPOSIT_SPP';
+      const isWithdrawal = t.type === 'WITHDRAWAL_SPP';
+      const amtIn = isDeposit ? t.amount : 0;
+      const amtOut = isWithdrawal ? t.amount : 0;
+
+      if (isDeposit) {
+        balance += amtIn;
+        totalIn += amtIn;
+      } else if (isWithdrawal) {
+        balance -= amtOut;
+        totalOut += amtOut;
+      }
+
+      items.push({
+        id: t.id,
+        date: t.date,
+        time: t.time || '08:00:00',
+        transactionNo: t.transactionNo,
+        santriName: t.santriName,
+        accountNumber: t.accountNumber,
+        description: t.notes || 'Pembayaran SPP via Transfer Rekening Pesantren',
+        notes: t.notes,
+        isDeposit,
+        amountIn: amtIn,
+        amountOut: amtOut,
+        runningBalance: balance,
+        method: t.method,
+        tellerName: t.tellerName,
+        userRole: 'PENGURUS',
+      });
+    });
+
+    return {
+      code: '1-1110',
+      name: 'Kas Rekening Bank SPP (Transfer Bank Pengurus)',
+      typeLabel: 'Aset Lancar Bank SPP',
+      category: 'AKTIVA',
+      userRole: 'PENGURUS',
+      description: 'Rekening bank khusus penerimaan transfer pembayaran SPP dari wali santri',
+      totalIn,
+      totalOut,
+      finalBalance: neraca.aktiva.kasBankSPP,
+      items,
+    };
+  }, [relevantTrx, neraca.aktiva.kasBankSPP]);
+
+  // 6. Akun 2-2000: Dana Penerimaan & Pengelolaan SPP Syahriah (Pengurus)
+  const ledgerDanaSPPPengurus = useMemo<AccountGroup>(() => {
+    let balance = 0;
+    let totalIn = 0;
+    let totalOut = 0;
+    const items: AccountLedgerItem[] = [];
+
+    const sppTrx = relevantTrx.filter((t) => getUserRole(t) === 'PENGURUS');
+
+    sppTrx.forEach((t) => {
+      const isDeposit = t.type === 'DEPOSIT_SPP';
+      const isWithdrawal = t.type === 'WITHDRAWAL_SPP';
+      const amtIn = isDeposit ? t.amount : 0;
+      const amtOut = isWithdrawal ? t.amount : 0;
+
+      if (isDeposit) {
+        balance += amtIn;
+        totalIn += amtIn;
+      } else if (isWithdrawal) {
+        balance -= amtOut;
+        totalOut += amtOut;
+      }
+
+      items.push({
+        id: t.id,
+        date: t.date,
+        time: t.time || '08:00:00',
+        transactionNo: t.transactionNo,
+        santriName: t.santriName,
+        accountNumber: t.accountNumber,
+        description: t.notes || (isDeposit ? 'Penerimaan Setoran SPP Santri' : 'Alokasi Penyaluran Dana SPP'),
+        notes: t.notes,
+        isDeposit,
+        amountIn: amtIn,
+        amountOut: amtOut,
+        runningBalance: balance,
+        method: t.method,
+        tellerName: t.tellerName,
+        userRole: 'PENGURUS',
+      });
+    });
+
+    return {
+      code: '2-2000',
+      name: 'Dana Penerimaan & Pengelolaan SPP Syahriah',
+      typeLabel: 'Dana Titipan Terikat Pesantren',
+      category: 'PASIVA',
+      userRole: 'PENGURUS',
+      description: 'Dana operasional pendidikan pesantren yang bersumber dari akumulasi setoran SPP santri',
+      totalIn,
+      totalOut,
+      finalBalance: neraca.pasiva.danaPenerimaanSPP,
+      items,
+    };
+  }, [relevantTrx, neraca.pasiva.danaPenerimaanSPP]);
+
+  // List of all accounts
+  const allAccountGroups = useMemo<AccountGroup[]>(() => {
+    return [
+      ledgerKasTunaiBendahara,
+      ledgerKasBankBendahara,
+      ledgerWadiahBendahara,
+      ledgerKasTunaiPengurus,
+      ledgerKasBankPengurus,
+      ledgerDanaSPPPengurus,
+    ];
+  }, [
+    ledgerKasTunaiBendahara,
+    ledgerKasBankBendahara,
+    ledgerWadiahBendahara,
+    ledgerKasTunaiPengurus,
+    ledgerKasBankPengurus,
+    ledgerDanaSPPPengurus,
+  ]);
+
+  // Filtered account ledgers based on selected user and account
+  const displayedAccountLedgers = useMemo(() => {
+    let list = allAccountGroups;
+
+    // Filter by User
+    if (selectedUserFilter !== 'ALL') {
+      list = list.filter((a) => a.userRole === selectedUserFilter);
+    }
+
+    // Filter by specific account code
+    if (selectedAccount !== 'ALL') {
+      list = list.filter((a) => a.code === selectedAccount);
+    }
+
+    return list;
+  }, [allAccountGroups, selectedUserFilter, selectedAccount]);
+
+  // Helper filter search & mutation type
   const filterAccountItems = (items: AccountLedgerItem[]) => {
     const q = searchTerm.trim().toLowerCase();
     return items.filter((item) => {
+      // Filter User Role
+      if (selectedUserFilter !== 'ALL' && item.userRole !== selectedUserFilter) return false;
+
       // Filter Mutation Type
       if (mutationFilter === 'SETORAN' && !item.isDeposit) return false;
       if (mutationFilter === 'PENARIKAN' && item.isDeposit) return false;
 
-      // Filter Search
+      // Filter Search Keyword
       if (!q) return true;
       return (
         item.santriName.toLowerCase().includes(q) ||
         item.transactionNo.toLowerCase().includes(q) ||
         item.accountNumber.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
-        (item.notes || '').toLowerCase().includes(q)
+        (item.notes || '').toLowerCase().includes(q) ||
+        item.tellerName.toLowerCase().includes(q)
       );
     });
   };
@@ -279,11 +535,11 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
           <div className="flex items-center space-x-2">
             <Scale className="w-5 h-5 text-emerald-700" />
             <h2 className="text-base font-bold text-slate-900">
-              Neraca Kas Titipan & Pencatatan Transaksi Tiap Akun
+              Neraca Keuangan Terpadu (Pantau Transaksi Pengurus & Bendahara)
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Laporan posisi keuangan kas titipan wadiah dan rincian mutasi setoran & penarikan tiap akun
+            Laporan posisi keuangan terpadu: Kas Titipan Wadiah (Bendahara) & Kas Dana SPP Pesantren (Pengurus)
           </p>
         </div>
 
@@ -366,7 +622,7 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
 
           {/* Print Controls */}
           <PrintControlBar
-            documentTitle={`Laporan Neraca Kas Titipan & Pencatatan Akun per ${asOfDate}`}
+            documentTitle={`Laporan Neraca Keuangan Pesantren per ${asOfDate}`}
             defaultOrientation={formatType === 'SKONTRO' && viewMode === 'NERACA' ? 'landscape' : 'portrait'}
             defaultPaperSize="A4"
             buttonLabel="Cetak Laporan"
@@ -374,18 +630,82 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
         </div>
       </div>
 
+      {/* Filter Bar: Pemantau Transaksi Tiap User (Pengurus & Bendahara) */}
+      <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-sm border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 no-print">
+        <div className="flex items-center space-x-3">
+          <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-400 border border-slate-700">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+              Filter Pemantau Transaksi Tiap User di Neraca
+            </h3>
+            <p className="text-[11px] text-slate-300">
+              Pilih untuk melihat transaksi spesifik yang dilakukan oleh Pengurus TU atau Bendahara Loket
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedUserFilter('ALL');
+              setSelectedAccount('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+              selectedUserFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            Semua User (Terpadu)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedUserFilter('BENDAHARA');
+              setSelectedAccount('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              selectedUserFilter === 'BENDAHARA'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-300 hover:text-emerald-300'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5 text-emerald-300" />
+            <span>User Bendahara (Titipan Wadiah)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedUserFilter('PENGURUS');
+              setSelectedAccount('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              selectedUserFilter === 'PENGURUS'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-300 hover:text-amber-300'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-amber-300" />
+            <span>User Pengurus (Dana SPP)</span>
+          </button>
+        </div>
+      </div>
+
       {/* Balance Indicator Status Box (No Print) */}
       <div className="no-print">
         {neraca.isBalanced ? (
-          <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 flex items-center justify-between text-xs text-emerald-900">
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-900">
             <div className="flex items-center space-x-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span className="font-semibold">
-                Status Neraca: <strong>SEIMBANG (BALANCE 100%)</strong>. Total Aktiva (Kas Tunai + Kas Bank) = Total Kewajiban Simpanan Santri.
+                Status Neraca: <strong>SEIMBANG (BALANCE 100%)</strong>. Total Aktiva (Kas Bendahara + Kas Pengurus) = Total Pasiva (Kewajiban Wadiah + Dana SPP).
               </span>
             </div>
-            <div className="font-mono-numbers font-bold text-emerald-800 text-right">
-              Total Titipan: {formatRupiah(neraca.aktiva.totalAktiva)}
+            <div className="font-mono-numbers font-bold text-emerald-900 text-right">
+              Total Kas Terpadu: {formatRupiah(neraca.aktiva.totalAktiva)}
             </div>
           </div>
         ) : (
@@ -420,146 +740,223 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
             {pesantrenProfile.formalName}
           </h1>
           <p className="text-xs text-slate-600 font-sans mt-0.5">
-            Unit Pengelolaan Kas Titipan Wadiah Santri (Baitul Maal Pesantren)
+            Laporan Keuangan Terpadu Baitul Maal & Unit Tata Usaha Pesantren
           </p>
           <p className="text-[10px] text-slate-500 font-sans">
             {pesantrenProfile.address}, {pesantrenProfile.district} • Telp: {pesantrenProfile.phone}
           </p>
           <div className="mt-3 pt-2 border-t border-slate-200 flex flex-col items-center">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 font-sans">
-              LAPORAN NERACA KAS TITIPAN & PENCATATAN TRANSAKSI AKUN
+              LAPORAN NERACA TERPADU & PENCATATAN TRANSAKSI DUA USER
             </h2>
             <p className="text-xs text-slate-500 font-sans font-medium">
               Per {formatDateIndo(neraca.asOfDate)} (Dinyatakan dalam Rupiah)
             </p>
-            <span className="mt-1 text-[10px] bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full font-sans font-bold border border-emerald-300">
-              Struktur Khusus: Akad Wadiah Murni (Arus Titipan Masuk & Penarikan Jajan/Kebutuhan Santri)
-            </span>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 font-sans">
+              <span className="text-[10px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full font-bold border border-emerald-300">
+                User Bendahara: Kas Titipan Wadiah Uang Saku
+              </span>
+              <span className="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold border border-amber-300">
+                User Pengurus: Kas Dana SPP Syahriah Pesantren
+              </span>
+            </div>
           </div>
         </div>
 
         {/* SECTION 1: RINGKASAN NERACA */}
         {(viewMode === 'NERACA' || viewMode === 'SEMUA') && (
           <div className="space-y-6 mb-8">
-            {/* Ringkasan Akumulasi Realisasi Titipan & Total Penarikan Uang Jajan Santri */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans">
-              {/* Card 1: Total Titipan Masuk */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
-                <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    <ArrowDownRight className="w-4 h-4 text-emerald-600" />
-                    <span>Total Setoran Masuk (Wali)</span>
-                  </span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono font-bold">
-                    {neraca.countSetoranTitipan} Transaksi
-                  </span>
-                </div>
-                <p className="text-base font-black text-slate-900 font-mono-numbers mt-1.5">
-                  {formatRupiah(neraca.totalSetoranTitipan)}
-                </p>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Akumulasi setoran uang saku via loket tunai & bank
-                </p>
-              </div>
-
-              {/* Card 2: Total Penarikan Santri */}
-              <div className="bg-amber-50/80 border-2 border-amber-400 rounded-xl p-3.5 shadow-xs">
-                <div className="flex items-center justify-between text-amber-950 text-[11px] font-bold">
-                  <span className="flex items-center gap-1.5">
-                    <HandCoins className="w-4 h-4 text-amber-700" />
-                    <span>Total Penarikan Santri</span>
-                  </span>
-                  <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono font-bold">
-                    {neraca.countPenarikanJajan}x Transaksi
-                  </span>
-                </div>
-                <p className="text-base font-black text-amber-900 font-mono-numbers mt-1.5">
-                  {formatRupiah(neraca.totalPenarikanJajan)}
-                </p>
-                <p className="text-[10px] text-amber-800 mt-0.5 font-medium">
-                  Uang jajan & keperluan santri yang telah dicairkan
-                </p>
-              </div>
-
-              {/* Card 3: Sisa Kas Titipan Berjalan */}
-              <div className="bg-emerald-50/70 border border-emerald-300 rounded-xl p-3.5">
-                <div className="flex items-center justify-between text-emerald-900 text-[11px] font-semibold">
+            {/* 3 Metric Summary Cards: Bendahara vs Pengurus vs Total */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans">
+              {/* Card 1: User Bendahara (Titipan Wadiah) */}
+              <div className="bg-emerald-50/70 border-2 border-emerald-300 rounded-xl p-4">
+                <div className="flex items-center justify-between text-emerald-900 text-xs font-bold border-b border-emerald-200 pb-2">
                   <span className="flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-emerald-700" />
-                    <span>Sisa Saldo Kas Titipan</span>
+                    <span>USER BENDAHARA (TITIPAN WADIAH)</span>
                   </span>
-                  <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-mono font-bold">
-                    {neraca.totalSantriWithBalance} Santri Bersaldo
+                  <span className="text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded-full font-mono">
+                    {neraca.countSetoranTitipan + neraca.countPenarikanJajan} Trx
                   </span>
                 </div>
-                <p className="text-base font-black text-emerald-950 font-mono-numbers mt-1.5">
-                  {formatRupiah(neraca.pasiva.totalPasiva)}
+                <div className="mt-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Setoran Titipan Masuk (+):</span>
+                    <span className="font-bold text-emerald-800 font-mono-numbers">
+                      {formatRupiah(neraca.totalSetoranTitipan)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Penarikan Jajan & Kebutuhan (-):</span>
+                    <span className="font-bold text-rose-700 font-mono-numbers">
+                      - {formatRupiah(neraca.totalPenarikanJajan)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-emerald-950 font-black border-t border-emerald-200 pt-1.5 text-sm">
+                    <span>Sisa Kas Titipan Wadiah:</span>
+                    <span className="font-mono-numbers">
+                      {formatRupiah(neraca.aktiva.totalAktivaBendahara)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-emerald-700 mt-2 italic">
+                  Akun: 1-1000 (Tunai), 1-1010 (Bank), 2-1000 (Hak Santri)
                 </p>
-                <p className="text-[10px] text-emerald-700 mt-0.5">
-                  Total hak saldo santri yang siap dicairkan
+              </div>
+
+              {/* Card 2: User Pengurus (Dana SPP Pesantren) */}
+              <div className="bg-amber-50/70 border-2 border-amber-300 rounded-xl p-4">
+                <div className="flex items-center justify-between text-amber-950 text-xs font-bold border-b border-amber-200 pb-2">
+                  <span className="flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-amber-700" />
+                    <span>USER PENGURUS (DANA SPP)</span>
+                  </span>
+                  <span className="text-[10px] bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full font-mono">
+                    {neraca.countSetoranSPP + neraca.countPenarikanSPP} Trx
+                  </span>
+                </div>
+                <div className="mt-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Penerimaan SPP Masuk (+):</span>
+                    <span className="font-bold text-emerald-800 font-mono-numbers">
+                      {formatRupiah(neraca.totalSetoranSPP)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Penyaluran / Beban SPP (-):</span>
+                    <span className="font-bold text-rose-700 font-mono-numbers">
+                      - {formatRupiah(neraca.totalPenarikanSPP)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-amber-950 font-black border-t border-amber-200 pt-1.5 text-sm">
+                    <span>Sisa Kas Dana SPP:</span>
+                    <span className="font-mono-numbers">
+                      {formatRupiah(neraca.aktiva.totalAktivaPengurus)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-amber-800 mt-2 italic">
+                  Akun: 1-1100 (Tunai SPP), 1-1110 (Bank SPP), 2-2000 (Dana SPP)
                 </p>
+              </div>
+
+              {/* Card 3: Total Konsolidasi Pesantren */}
+              <div className="bg-slate-900 text-white rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-emerald-400 text-xs font-bold border-b border-slate-800 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-emerald-400" />
+                      <span>TOTAL KONSOLIDASI PESANTREN</span>
+                    </span>
+                    <span className="text-[10px] bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-bold">
+                      Aktiva = Pasiva
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Total Kas Titipan (Bendahara):</span>
+                      <span className="font-bold font-mono-numbers text-white">
+                        {formatRupiah(neraca.aktiva.totalAktivaBendahara)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Total Kas SPP (Pengurus):</span>
+                      <span className="font-bold font-mono-numbers text-white">
+                        {formatRupiah(neraca.aktiva.totalAktivaPengurus)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-800 pt-2 mt-3 flex justify-between items-center">
+                  <span className="text-xs uppercase tracking-wider text-emerald-300 font-bold">
+                    TOTAL KAS TERPADU:
+                  </span>
+                  <span className="text-base font-black text-emerald-300 font-mono-numbers">
+                    {formatRupiah(neraca.aktiva.totalAktiva)}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* FORMAT 1: SKONTRO (HORIZONTAL / T-ACCOUNT) */}
             {formatType === 'SKONTRO' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2">
-                {/* AKTIVA: SISI KIRI (KAS FISIK & BANK TITIPAN) */}
+                {/* AKTIVA: SISI KIRI */}
                 <div className="border border-slate-300 rounded-xl overflow-hidden flex flex-col justify-between">
                   <div>
                     <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex justify-between font-sans">
-                      <span>AKTIVA (KAS TITIPAN SANTRI)</span>
+                      <span>AKTIVA (ASET KAS PESANTREN)</span>
                       <span>JUMLAH (RP)</span>
                     </div>
 
                     <div className="p-4 space-y-4 text-xs font-sans">
+                      {/* I. Aset Kelolaan Bendahara */}
                       <div>
-                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-200 pb-1 flex items-center justify-between">
-                          <span>Kas Titipan yang Dikelola Bendahara</span>
-                          <span className="text-[10px] font-normal text-slate-500">Aset Lancar</span>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-emerald-300 pb-1 flex items-center justify-between">
+                          <span className="text-emerald-800 font-bold">I. Kas Titipan Wadiah (Kelolaan Bendahara)</span>
+                          <span className="text-[10px] font-normal text-slate-500 font-mono">Loket Jajan</span>
                         </h4>
 
-                        <div className="mt-3 space-y-3">
-                          {/* Kas Fisik Tunai Bendahara */}
-                          <div className="flex justify-between items-start text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                        <div className="mt-2 space-y-2">
+                          <div className="flex justify-between items-center text-slate-700 bg-emerald-50/40 p-2 rounded-lg border border-emerald-200">
                             <div>
-                              <p className="font-bold text-slate-900">Kas Fisik Tunai Bendahara</p>
-                              <p className="text-[10px] text-slate-500 font-mono">1-1000 (Brankas Loket Tunai)</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 italic">
-                                Uang tunai titipan untuk pencairan jajan & kebutuhan santri
-                              </p>
+                              <p className="font-bold text-slate-900">Kas Fisik Tunai Titipan</p>
+                              <p className="text-[10px] text-slate-500 font-mono">1-1000 (Brankas Loket Bendahara)</p>
                             </div>
-                            <span className="font-black text-slate-900 font-mono-numbers text-sm">
+                            <span className="font-bold text-slate-900 font-mono-numbers">
                               {formatRupiah(neraca.aktiva.kasTunaiTitipan)}
                             </span>
                           </div>
 
-                          {/* Kas Rekening Bank Titipan Transfer */}
-                          <div className="flex justify-between items-start text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          <div className="flex justify-between items-center text-slate-700 bg-emerald-50/40 p-2 rounded-lg border border-emerald-200">
                             <div>
-                              <p className="font-bold text-slate-900">Kas Rekening Bank Syariah</p>
-                              <p className="text-[10px] text-slate-500 font-mono">1-1010 (Rekening Transfer Bank Wadiah)</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 italic">
-                                Dana titipan orang tua yang masuk via transfer bank
-                              </p>
+                              <p className="font-bold text-slate-900">Kas Rekening Bank Titipan</p>
+                              <p className="text-[10px] text-slate-500 font-mono">1-1010 (Transfer Bank Wadiah Bendahara)</p>
                             </div>
-                            <span className="font-black text-slate-900 font-mono-numbers text-sm">
+                            <span className="font-bold text-slate-900 font-mono-numbers">
                               {formatRupiah(neraca.aktiva.kasBankTitipan)}
                             </span>
                           </div>
 
-                          {/* Ringkasan Realisasi Jajan di Sisi Kas */}
-                          <div className="flex justify-between items-center text-slate-700 bg-amber-50/60 p-2.5 rounded-lg border border-amber-200">
-                            <div className="flex items-center space-x-2">
-                              <HandCoins className="w-4 h-4 text-amber-700 shrink-0" />
-                              <div>
-                                <p className="font-bold text-amber-950 text-xs">Total Penarikan Santri</p>
-                                <p className="text-[10px] text-amber-800">Telah dicairkan secara tunai di loket bendahara</p>
-                              </div>
+                          <div className="flex justify-between items-center text-emerald-950 font-bold px-2 py-1 bg-emerald-100/60 rounded">
+                            <span>Subtotal Kas Kelolaan Bendahara:</span>
+                            <span className="font-mono-numbers">{formatRupiah(neraca.aktiva.totalAktivaBendahara)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* II. Aset Kelolaan Pengurus */}
+                      <div>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-amber-300 pb-1 flex items-center justify-between">
+                          <span className="text-amber-900 font-bold">II. Kas Dana SPP Pesantren (Kelolaan Pengurus)</span>
+                          <span className="text-[10px] font-normal text-slate-500 font-mono">Kantor TU</span>
+                        </h4>
+
+                        <div className="mt-2 space-y-2">
+                          <div className="flex justify-between items-center text-slate-700 bg-amber-50/40 p-2 rounded-lg border border-amber-200">
+                            <div>
+                              <p className="font-bold text-slate-900">Kas Fisik Tunai Dana SPP</p>
+                              <p className="text-[10px] text-slate-500 font-mono">1-1100 (Kas Kantor TU Pengurus)</p>
                             </div>
-                            <span className="font-black text-amber-900 font-mono-numbers text-xs">
-                              {formatRupiah(neraca.totalPenarikanJajan)}
+                            <span className="font-bold text-slate-900 font-mono-numbers">
+                              {formatRupiah(neraca.aktiva.kasTunaiSPP)}
                             </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-slate-700 bg-amber-50/40 p-2 rounded-lg border border-amber-200">
+                            <div>
+                              <p className="font-bold text-slate-900">Kas Rekening Bank Penerimaan SPP</p>
+                              <p className="text-[10px] text-slate-500 font-mono">1-1110 (Rekening Transfer SPP Pengurus)</p>
+                            </div>
+                            <span className="font-bold text-slate-900 font-mono-numbers">
+                              {formatRupiah(neraca.aktiva.kasBankSPP)}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-amber-950 font-bold px-2 py-1 bg-amber-100/60 rounded">
+                            <span>Subtotal Kas Kelolaan Pengurus:</span>
+                            <span className="font-mono-numbers">{formatRupiah(neraca.aktiva.totalAktivaPengurus)}</span>
                           </div>
                         </div>
                       </div>
@@ -567,77 +964,80 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                   </div>
 
                   {/* Total Aktiva Footer */}
-                  <div className="bg-emerald-50 border-t-2 border-slate-900 p-3.5 flex justify-between items-center font-sans">
+                  <div className="bg-slate-100 border-t-2 border-slate-900 p-3.5 flex justify-between items-center font-sans">
                     <div>
                       <span className="font-bold text-slate-900 text-xs uppercase tracking-wider block">
-                        TOTAL AKTIVA (KAS TITIPAN)
+                        TOTAL AKTIVA (KAS TERPADU)
                       </span>
-                      <span className="text-[10px] text-emerald-800">Uang fisik tunai + saldo bank titipan</span>
+                      <span className="text-[10px] text-slate-500">Kas Bendahara + Kas Pengurus</span>
                     </div>
-                    <span className="font-black text-base text-emerald-950 font-mono-numbers">
+                    <span className="font-black text-base text-slate-950 font-mono-numbers">
                       {formatRupiah(neraca.aktiva.totalAktiva)}
                     </span>
                   </div>
                 </div>
 
-                {/* PASIVA: SISI KANAN (KEWAJIBAN TITIPAN WADIAH SANTRI) */}
+                {/* PASIVA: SISI KANAN */}
                 <div className="border border-slate-300 rounded-xl overflow-hidden flex flex-col justify-between">
                   <div>
                     <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex justify-between font-sans">
-                      <span>PASIVA (KEWAJIBAN TITIPAN WADIAH)</span>
+                      <span>PASIVA (KEWAJIBAN & DANA PESANTREN)</span>
                       <span>JUMLAH (RP)</span>
                     </div>
 
                     <div className="p-4 space-y-4 text-xs font-sans">
+                      {/* I. Tanggung Jawab Bendahara */}
                       <div>
-                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-200 pb-1 flex items-center justify-between">
-                          <span>Hak Saldo Titipan Milik Santri</span>
-                          <span className="text-[10px] font-normal text-slate-500">Kewajiban Wadiah</span>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-emerald-300 pb-1 flex items-center justify-between">
+                          <span className="text-emerald-800 font-bold">I. Kewajiban Titipan Wadiah (Bendahara)</span>
+                          <span className="text-[10px] font-normal text-slate-500 font-mono">Hak Santri</span>
                         </h4>
 
-                        <div className="mt-3 space-y-3">
-                          {/* Simpanan Wadiah Santri */}
-                          <div className="flex justify-between items-start text-slate-700 bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200">
+                        <div className="mt-2 space-y-2">
+                          <div className="flex justify-between items-start text-slate-700 bg-emerald-50/40 p-2.5 rounded-lg border border-emerald-200">
                             <div>
-                              <p className="font-bold text-emerald-950">Simpanan Wadiah Titipan Santri</p>
+                              <p className="font-bold text-slate-900">Simpanan Titipan Wadiah Santri</p>
                               <p className="text-[10px] text-slate-500 font-mono">2-1000 (Akad Wadiah Yad Dhamanah)</p>
                               <p className="text-[10px] text-slate-600 mt-0.5">
-                                Total saldo titipan uang saku seluruh santri aktif ({neraca.totalSantriWithBalance} santri memiliki saldo)
+                                Hak saldo uang saku {neraca.totalSantriWithBalance} santri aktif
                               </p>
                             </div>
-                            <span className="font-black text-emerald-900 font-mono-numbers text-sm">
+                            <span className="font-bold text-slate-900 font-mono-numbers">
                               {formatRupiah(neraca.pasiva.kewajibanTitipanWadiah)}
                             </span>
                           </div>
 
-                          {/* Rincian Arus Wadiah: Masuk vs Ditarik Santri */}
-                          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5 text-[11px]">
-                            <div className="flex justify-between text-slate-600">
-                              <span>Akumulasi Titipan Diterima (+):</span>
-                              <span className="font-semibold font-mono-numbers text-emerald-700">{formatRupiah(neraca.totalSetoranTitipan)}</span>
+                          <div className="flex justify-between items-center text-emerald-950 font-bold px-2 py-1 bg-emerald-100/60 rounded">
+                            <span>Subtotal Pasiva Bendahara:</span>
+                            <span className="font-mono-numbers">{formatRupiah(neraca.pasiva.totalPasivaBendahara)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* II. Tanggung Jawab Pengurus */}
+                      <div>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-amber-300 pb-1 flex items-center justify-between">
+                          <span className="text-amber-900 font-bold">II. Dana Penerimaan SPP (Pengurus)</span>
+                          <span className="text-[10px] font-normal text-slate-500 font-mono">Operasional</span>
+                        </h4>
+
+                        <div className="mt-2 space-y-2">
+                          <div className="flex justify-between items-start text-slate-700 bg-amber-50/40 p-2.5 rounded-lg border border-amber-200">
+                            <div>
+                              <p className="font-bold text-slate-900">Dana Penerimaan & Pengelolaan SPP</p>
+                              <p className="text-[10px] text-slate-500 font-mono">2-2000 (Dana Terikat SPP Syahriah)</p>
+                              <p className="text-[10px] text-slate-600 mt-0.5">
+                                Bersih penerimaan SPP setelah dialokasikan operasional
+                              </p>
                             </div>
-                            <div className="flex justify-between text-amber-950 font-bold bg-amber-100/80 px-2 py-1.5 rounded border border-amber-300">
-                              <span className="flex items-center gap-1.5">
-                                <HandCoins className="w-3.5 h-3.5 text-amber-700" />
-                                <span>Total Penarikan Santri (-):</span>
-                              </span>
-                              <span className="font-mono-numbers text-rose-700">- {formatRupiah(neraca.totalPenarikanJajan)}</span>
-                            </div>
-                            <div className="flex justify-between text-emerald-950 font-bold border-t border-slate-200 pt-1">
-                              <span>Sisa Hak Saldo Titipan Seluruh Santri:</span>
-                              <span className="font-mono-numbers">{formatRupiah(neraca.pasiva.kewajibanTitipanWadiah)}</span>
-                            </div>
+                            <span className="font-bold text-slate-900 font-mono-numbers">
+                              {formatRupiah(neraca.pasiva.danaPenerimaanSPP)}
+                            </span>
                           </div>
 
-                          {/* Penjelasan Transparansi */}
-                          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                            <div className="flex items-center space-x-1.5 font-bold text-slate-800">
-                              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                              <span>Prinsip Titipan Murni (Amanah):</span>
-                            </div>
-                            <p className="text-[10px] leading-relaxed text-slate-500">
-                              Seluruh dana yang ada di tangan bendahara adalah hak murni milik santri. Setiap setoran menambah kewajiban titipan, dan setiap penarikan langsung mendebet pos kewajiban ini.
-                            </p>
+                          <div className="flex justify-between items-center text-amber-950 font-bold px-2 py-1 bg-amber-100/60 rounded">
+                            <span>Subtotal Pasiva Pengurus:</span>
+                            <span className="font-mono-numbers">{formatRupiah(neraca.pasiva.totalPasivaPengurus)}</span>
                           </div>
                         </div>
                       </div>
@@ -645,14 +1045,14 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                   </div>
 
                   {/* Total Pasiva Footer */}
-                  <div className="bg-emerald-50 border-t-2 border-slate-900 p-3.5 flex justify-between items-center font-sans">
+                  <div className="bg-slate-100 border-t-2 border-slate-900 p-3.5 flex justify-between items-center font-sans">
                     <div>
                       <span className="font-bold text-slate-900 text-xs uppercase tracking-wider block">
-                        TOTAL PASIVA (KEWAJIBAN TITIPAN)
+                        TOTAL PASIVA (KEWAJIBAN & DANA)
                       </span>
-                      <span className="text-[10px] text-emerald-800">Total hutang titipan kepada seluruh santri</span>
+                      <span className="text-[10px] text-slate-500">Kewajiban Wadiah + Dana SPP</span>
                     </div>
-                    <span className="font-black text-base text-emerald-950 font-mono-numbers">
+                    <span className="font-black text-base text-slate-950 font-mono-numbers">
                       {formatRupiah(neraca.pasiva.totalPasiva)}
                     </span>
                   </div>
@@ -667,23 +1067,30 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                   <thead>
                     <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider text-[11px]">
                       <th className="px-4 py-2.5 text-left w-24">Kode Akun</th>
-                      <th className="px-4 py-2.5 text-left">Uraian Akun Kas Titipan</th>
-                      <th className="px-4 py-2.5 text-right w-44">Rincian (Rp)</th>
-                      <th className="px-4 py-2.5 text-right w-44">Total (Rp)</th>
+                      <th className="px-4 py-2.5 text-left">Uraian Akun Neraca Terpadu</th>
+                      <th className="px-4 py-2.5 text-left w-32">Pengelola User</th>
+                      <th className="px-4 py-2.5 text-right w-36">Rincian (Rp)</th>
+                      <th className="px-4 py-2.5 text-right w-40">Subtotal / Total (Rp)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {/* 1. AKTIVA */}
                     <tr className="bg-slate-100 font-bold text-slate-900">
-                      <td colSpan={4} className="px-4 py-2 text-xs uppercase tracking-wider">
-                        I. AKTIVA (ASET KAS TITIPAN SANTRI)
+                      <td colSpan={5} className="px-4 py-2 text-xs uppercase tracking-wider">
+                        I. AKTIVA (ASET KAS TERPADU PESANTREN)
                       </td>
                     </tr>
+                    {/* Kelolaan Bendahara */}
                     <tr>
                       <td className="px-4 py-2 text-slate-500 font-mono">1-1000</td>
                       <td className="px-4 py-2 text-slate-800">
-                        <p className="font-semibold">Kas Fisik Tunai Bendahara Pesantren</p>
-                        <p className="text-[10px] text-slate-500">Uang tunai titipan untuk pencairan jajan & kebutuhan santri di loket</p>
+                        <p className="font-semibold">Kas Fisik Tunai Titipan (Brankas Loket)</p>
+                        <p className="text-[10px] text-slate-500">Uang saku tunai titipan orang tua untuk pencairan jajan santri</p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">
+                          BENDAHARA
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-right font-mono-numbers">{formatRupiah(neraca.aktiva.kasTunaiTitipan)}</td>
                       <td></td>
@@ -691,75 +1098,120 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                     <tr>
                       <td className="px-4 py-2 text-slate-500 font-mono">1-1010</td>
                       <td className="px-4 py-2 text-slate-800">
-                        <p className="font-semibold">Kas Rekening Bank Syariah (Transfer Via Bank)</p>
-                        <p className="text-[10px] text-slate-500">Dana titipan orang tua yang disetor melalui transfer perbankan</p>
+                        <p className="font-semibold">Kas Rekening Bank Titipan (Transfer Bank)</p>
+                        <p className="text-[10px] text-slate-500">Dana titipan orang tua yang disetor via perbankan syariah</p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">
+                          BENDAHARA
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-right font-mono-numbers">{formatRupiah(neraca.aktiva.kasBankTitipan)}</td>
                       <td></td>
                     </tr>
-                    <tr className="bg-emerald-50/70 font-bold text-slate-900 border-t-2 border-b border-emerald-300">
-                      <td className="px-4 py-2.5"></td>
-                      <td className="px-4 py-2.5 uppercase tracking-wide">TOTAL AKTIVA (KAS TITIPAN YANG DIKELOLA)</td>
+                    <tr className="bg-emerald-50/60 font-semibold text-emerald-950">
+                      <td className="px-4 py-1.5"></td>
+                      <td colSpan={3} className="px-4 py-1.5 italic text-[11px]">Subtotal Kas Kelolaan Bendahara (Titipan Wadiah)</td>
+                      <td className="px-4 py-1.5 text-right font-mono-numbers font-bold text-emerald-900">
+                        {formatRupiah(neraca.aktiva.totalAktivaBendahara)}
+                      </td>
+                    </tr>
+
+                    {/* Kelolaan Pengurus */}
+                    <tr>
+                      <td className="px-4 py-2 text-slate-500 font-mono">1-1100</td>
+                      <td className="px-4 py-2 text-slate-800">
+                        <p className="font-semibold">Kas Fisik Tunai Dana SPP (Kantor TU)</p>
+                        <p className="text-[10px] text-slate-500">Penerimaan SPP syahriah bulanan santri tunai di kantor pengurus</p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">
+                          PENGURUS
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono-numbers">{formatRupiah(neraca.aktiva.kasTunaiSPP)}</td>
                       <td></td>
-                      <td className="px-4 py-2.5 text-right font-black font-mono-numbers text-sm text-emerald-950">
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 text-slate-500 font-mono">1-1110</td>
+                      <td className="px-4 py-2 text-slate-800">
+                        <p className="font-semibold">Kas Rekening Bank Penerimaan SPP (Transfer Bank)</p>
+                        <p className="text-[10px] text-slate-500">Rekening perbankan khusus pembayaran SPP syahriah santri</p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">
+                          PENGURUS
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono-numbers">{formatRupiah(neraca.aktiva.kasBankSPP)}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="bg-amber-50/60 font-semibold text-amber-950">
+                      <td className="px-4 py-1.5"></td>
+                      <td colSpan={3} className="px-4 py-1.5 italic text-[11px]">Subtotal Kas Kelolaan Pengurus (Dana SPP Pesantren)</td>
+                      <td className="px-4 py-1.5 text-right font-mono-numbers font-bold text-amber-900">
+                        {formatRupiah(neraca.aktiva.totalAktivaPengurus)}
+                      </td>
+                    </tr>
+
+                    <tr className="bg-slate-200/80 font-bold text-slate-900 border-t-2 border-b-2 border-slate-900">
+                      <td className="px-4 py-2.5"></td>
+                      <td colSpan={3} className="px-4 py-2.5 uppercase tracking-wide">TOTAL AKTIVA (KAS TERPADU KESELURUHAN)</td>
+                      <td className="px-4 py-2.5 text-right font-black font-mono-numbers text-sm text-slate-950">
                         {formatRupiah(neraca.aktiva.totalAktiva)}
                       </td>
                     </tr>
 
                     {/* 2. PASIVA */}
                     <tr className="bg-slate-100 font-bold text-slate-900">
-                      <td colSpan={4} className="px-4 py-2 text-xs uppercase tracking-wider">
-                        II. PASIVA (KEWAJIBAN TITIPAN WADIAH SANTRI)
+                      <td colSpan={5} className="px-4 py-2 text-xs uppercase tracking-wider">
+                        II. PASIVA (KEWAJIBAN TITIPAN & DANA PESANTREN)
                       </td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-2 text-slate-500 font-mono">2-1000A</td>
-                      <td className="px-4 py-2 text-slate-800">
-                        <p className="font-semibold">Akumulasi Titipan Uang Saku Masuk (Wali Santri)</p>
-                        <p className="text-[10px] text-slate-500">
-                          Total penerimaan titipan uang saku dari orang tua ({neraca.countSetoranTitipan} transaksi masuk)
-                        </p>
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono-numbers text-slate-800">
-                        {formatRupiah(neraca.totalSetoranTitipan)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    <tr className="bg-amber-50/70 border-y border-amber-200">
-                      <td className="px-4 py-2 text-amber-800 font-mono font-bold">2-1000B</td>
-                      <td className="px-4 py-2 text-amber-950">
-                        <div className="flex items-center gap-1.5">
-                          <HandCoins className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                          <p className="font-bold">Total Penarikan Santri (Dicairkan di Loket)</p>
-                        </div>
-                        <p className="text-[10px] text-amber-800">
-                          Akumulasi penarikan uang jajan & kebutuhan santri ({neraca.countPenarikanJajan} transaksi)
-                        </p>
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono-numbers font-bold text-rose-700">
-                        - {formatRupiah(neraca.totalPenarikanJajan)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    <tr className="bg-emerald-50/50">
                       <td className="px-4 py-2 text-slate-500 font-mono">2-1000</td>
                       <td className="px-4 py-2 text-slate-800">
-                        <p className="font-bold text-emerald-950">Sisa Bersih Simpanan Titipan Wadiah Santri</p>
+                        <p className="font-bold text-slate-900">Kewajiban Simpanan Wadiah Santri (Hak Uang Saku)</p>
                         <p className="text-[10px] text-slate-500">
-                          Total hak saldo titipan seluruh santri aktif ({neraca.totalSantriWithBalance} santri memiliki saldo)
+                          Total hak saldo titipan uang saku milik seluruh santri aktif ({neraca.totalSantriWithBalance} santri bersaldo)
                         </p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">
+                          BENDAHARA
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-right font-mono-numbers font-bold text-emerald-800">
                         {formatRupiah(neraca.pasiva.kewajibanTitipanWadiah)}
                       </td>
-                      <td className="px-4 py-2 text-right font-black font-mono-numbers text-emerald-950">
-                        {formatRupiah(neraca.pasiva.kewajibanTitipanWadiah)}
+                      <td className="px-4 py-2 text-right font-mono-numbers font-bold text-emerald-900">
+                        {formatRupiah(neraca.pasiva.totalPasivaBendahara)}
                       </td>
                     </tr>
+                    <tr>
+                      <td className="px-4 py-2 text-slate-500 font-mono">2-2000</td>
+                      <td className="px-4 py-2 text-slate-800">
+                        <p className="font-bold text-slate-900">Dana Penerimaan & Pengelolaan SPP Syahriah</p>
+                        <p className="text-[10px] text-slate-500">
+                          Total akumulasi pembayaran SPP santri setelah penyaluran untuk operasional pendidikan
+                        </p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">
+                          PENGURUS
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono-numbers font-bold text-amber-800">
+                        {formatRupiah(neraca.pasiva.danaPenerimaanSPP)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono-numbers font-bold text-amber-900">
+                        {formatRupiah(neraca.pasiva.totalPasivaPengurus)}
+                      </td>
+                    </tr>
+
                     <tr className="bg-slate-900 text-white font-bold text-xs uppercase tracking-wider">
                       <td className="px-4 py-2.5"></td>
-                      <td className="px-4 py-2.5">TOTAL PASIVA (KEWAJIBAN TITIPAN SANTRI)</td>
-                      <td></td>
+                      <td colSpan={3} className="px-4 py-2.5">TOTAL PASIVA (KEWAJIBAN & DANA KESELURUHAN)</td>
                       <td className="px-4 py-2.5 text-right font-black font-mono-numbers text-sm text-emerald-300">
                         {formatRupiah(neraca.pasiva.totalPasiva)}
                       </td>
@@ -771,26 +1223,27 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
           </div>
         )}
 
-        {/* SECTION 2: PENCATATAN TRANSAKSI TIAP AKUN (BUKU PEMBANTU NERACA) */}
+        {/* SECTION 2: PENCATATAN TRANSAKSI TIAP AKUN & TIAP USER */}
         {(viewMode === 'BUKU_PEMBANTU' || viewMode === 'SEMUA') && (
-          <div className="space-y-6 pt-4 border-t-2 border-slate-900">
+          <div className="space-y-6 pt-6 border-t-2 border-slate-900">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center space-x-2">
                   <BookOpen className="w-5 h-5 text-emerald-700" />
                   <h3 className="text-base font-bold text-slate-900 font-sans uppercase tracking-wide">
-                    Pencatatan Transaksi Tiap Akun Neraca (Buku Pembantu / Sub-Ledger)
+                    Pencatatan Transaksi Tiap Akun (Buku Pembantu / Sub-Ledger Neraca)
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 font-sans mt-0.5">
-                  Rincian seluruh mutasi setoran dan penarikan yang membentuk saldo akhir setiap akun pada Neraca per {formatDateIndo(asOfDate)}
+                  Rincian transaksi per akun untuk memantau transaksi yang dilakukan oleh User Pengurus dan User Bendahara
                 </p>
               </div>
 
               {/* Account Selector Pill Tabs */}
               <div className="flex flex-wrap items-center gap-1.5 no-print font-sans text-xs">
                 <button
+                  type="button"
                   onClick={() => setSelectedAccount('ALL')}
                   className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
                     selectedAccount === 'ALL'
@@ -798,40 +1251,79 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  Semua Akun (3)
+                  Semua Akun ({displayedAccountLedgers.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSelectedAccount('1-1000')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
                     selectedAccount === '1-1000'
                       ? 'bg-emerald-700 text-white shadow-xs'
                       : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                   }`}
                 >
-                  <Wallet className="w-3.5 h-3.5" />
-                  <span>1-1000 Kas Tunai</span>
+                  <Wallet className="w-3 h-3" />
+                  <span>1-1000 Tunai Titipan</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSelectedAccount('1-1010')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
                     selectedAccount === '1-1010'
-                      ? 'bg-blue-700 text-white shadow-xs'
-                      : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                      ? 'bg-teal-700 text-white shadow-xs'
+                      : 'bg-teal-50 text-teal-800 hover:bg-teal-100'
                   }`}
                 >
-                  <Landmark className="w-3.5 h-3.5" />
-                  <span>1-1010 Kas Bank</span>
+                  <Landmark className="w-3 h-3" />
+                  <span>1-1010 Bank Titipan</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSelectedAccount('2-1000')}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
                     selectedAccount === '2-1000'
-                      ? 'bg-purple-700 text-white shadow-xs'
-                      : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>2-1000 Kewajiban Wadiah</span>
+                  <Layers className="w-3 h-3" />
+                  <span>2-1000 Wadiah Santri</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAccount('1-1100')}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                    selectedAccount === '1-1100'
+                      ? 'bg-amber-700 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  <GraduationCap className="w-3 h-3" />
+                  <span>1-1100 Tunai SPP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAccount('1-1110')}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                    selectedAccount === '1-1110'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-900 hover:bg-amber-100'
+                  }`}
+                >
+                  <Landmark className="w-3 h-3" />
+                  <span>1-1110 Bank SPP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAccount('2-2000')}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                    selectedAccount === '2-2000'
+                      ? 'bg-indigo-700 text-white shadow-xs'
+                      : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                  }`}
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>2-2000 Dana SPP</span>
                 </button>
               </div>
             </div>
@@ -842,7 +1334,7 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Cari nama santri, no transaksi, rekening, uraian..."
+                  placeholder="Cari santri, no transaksi, petugas, uraian..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
@@ -858,55 +1350,82 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center space-x-2">
-                <span className="text-slate-500 font-semibold">Tampilkan:</span>
-                <select
-                  value={mutationFilter}
-                  onChange={(e) => setMutationFilter(e.target.value as MutationFilter)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="ALL">Semua Mutasi (Setoran & Penarikan)</option>
-                  <option value="SETORAN">Hanya Setoran Masuk (+)</option>
-                  <option value="PENARIKAN">Hanya Penarikan Keluar (-)</option>
-                </select>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-slate-500 font-semibold">User:</span>
+                  <select
+                    value={selectedUserFilter}
+                    onChange={(e) => setSelectedUserFilter(e.target.value as UserFilter)}
+                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="ALL">Semua User</option>
+                    <option value="BENDAHARA">User Bendahara</option>
+                    <option value="PENGURUS">User Pengurus</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-slate-500 font-semibold">Mutasi:</span>
+                  <select
+                    value={mutationFilter}
+                    onChange={(e) => setMutationFilter(e.target.value as MutationFilter)}
+                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="ALL">Semua Mutasi</option>
+                    <option value="SETORAN">Hanya Setoran (+)</option>
+                    <option value="PENARIKAN">Hanya Penarikan (-)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Account Tables */}
             <div className="space-y-8">
-              {allAccountLedgers.map((account) => {
+              {displayedAccountLedgers.map((account) => {
                 const filteredItems = filterAccountItems(account.items);
                 const subtotalIn = filteredItems.reduce((acc, it) => acc + it.amountIn, 0);
                 const subtotalOut = filteredItems.reduce((acc, it) => acc + it.amountOut, 0);
+                const isPengurus = account.userRole === 'PENGURUS';
 
                 return (
                   <div
                     key={account.code}
-                    className="border border-slate-300 rounded-2xl overflow-hidden shadow-xs bg-white"
+                    className={`border rounded-2xl overflow-hidden shadow-xs bg-white ${
+                      isPengurus ? 'border-amber-300' : 'border-emerald-300'
+                    }`}
                   >
                     {/* Account Header Banner */}
                     <div className="bg-slate-900 text-white p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 font-sans">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400 font-mono font-bold text-sm border border-slate-700">
+                        <div
+                          className={`w-11 h-11 rounded-xl flex items-center justify-center font-mono font-black text-sm border ${
+                            isPengurus
+                              ? 'bg-amber-950 text-amber-300 border-amber-700'
+                              : 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                          }`}
+                        >
                           {account.code}
                         </div>
                         <div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <h4 className="font-bold text-sm text-white tracking-wide">
                               {account.name}
                             </h4>
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                                account.category === 'AKTIVA'
-                                  ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-700'
-                                  : 'bg-purple-900/80 text-purple-300 border border-purple-700'
+                              className={`px-2 py-0.5 rounded text-[10px] font-black font-mono tracking-wider ${
+                                isPengurus
+                                  ? 'bg-amber-500 text-slate-950'
+                                  : 'bg-emerald-500 text-slate-950'
                               }`}
                             >
+                              USER {account.userRole}
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-800 text-slate-300 border border-slate-700">
                               {account.category} • {account.typeLabel}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            Pencatatan real-time arus setoran dan penarikan yang terhubung ke Neraca
+                            {account.description}
                           </p>
                         </div>
                       </div>
@@ -949,21 +1468,22 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                           <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 text-[11px] font-sans">
                             <th className="px-3 py-2.5 text-center w-12">No</th>
                             <th className="px-3 py-2.5 text-left w-24">Tanggal</th>
+                            <th className="px-3 py-2.5 text-center w-28">User Operator</th>
                             <th className="px-3 py-2.5 text-left w-28">No. Transaksi</th>
                             <th className="px-3 py-2.5 text-left">Nama Santri & Rekening</th>
                             <th className="px-3 py-2.5 text-left">Uraian Transaksi</th>
-                            <th className="px-3 py-2.5 text-left w-28">Metode</th>
+                            <th className="px-3 py-2.5 text-left w-24">Metode</th>
                             <th className="px-3 py-2.5 text-right w-28">Setoran (+)</th>
                             <th className="px-3 py-2.5 text-right w-28">Penarikan (-)</th>
                             <th className="px-3 py-2.5 text-right w-32">Saldo Akun (Rp)</th>
-                            <th className="px-3 py-2.5 text-left w-24">Petugas</th>
+                            <th className="px-3 py-2.5 text-left w-28">Petugas / Teller</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 font-sans">
                           {filteredItems.length === 0 ? (
                             <tr>
-                              <td colSpan={10} className="px-4 py-8 text-center text-slate-400 italic">
-                                Belum ada pencatatan transaksi untuk akun ini yang cocok dengan filter.
+                              <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic">
+                                Belum ada pencatatan transaksi untuk akun ini ({account.code}) yang cocok dengan filter.
                               </td>
                             </tr>
                           ) : (
@@ -975,6 +1495,17 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                                 <td className="px-3 py-2 text-slate-600 whitespace-nowrap font-mono text-[11px]">
                                   <div>{item.date}</div>
                                   <div className="text-[10px] text-slate-400">{item.time.slice(0, 5)}</div>
+                                </td>
+                                <td className="px-3 py-2 text-center whitespace-nowrap">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${
+                                      item.userRole === 'PENGURUS'
+                                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                    }`}
+                                  >
+                                    {item.userRole}
+                                  </span>
                                 </td>
                                 <td className="px-3 py-2 font-mono text-[10px] text-slate-500 whitespace-nowrap">
                                   {item.transactionNo}
@@ -1014,8 +1545,8 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
                                 <td className="px-3 py-2 text-right font-mono-numbers font-bold text-slate-900 bg-slate-50/50">
                                   {formatRupiah(item.runningBalance)}
                                 </td>
-                                <td className="px-3 py-2 text-slate-500 text-[10px] whitespace-nowrap">
-                                  {item.tellerName || 'Bendahara'}
+                                <td className="px-3 py-2 text-slate-600 text-[10px] whitespace-nowrap">
+                                  {item.tellerName || (item.userRole === 'PENGURUS' ? 'Pengurus TU' : 'Bendahara Loket')}
                                 </td>
                               </tr>
                             ))
@@ -1023,8 +1554,8 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
 
                           {/* Subtotal Footer Row */}
                           <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300 font-sans">
-                            <td colSpan={6} className="px-3 py-2.5 text-right uppercase text-[11px] tracking-wide">
-                              TOTAL MUTASI {account.code} ({filteredItems.length} TRANSAKSI)
+                            <td colSpan={7} className="px-3 py-2.5 text-right uppercase text-[11px] tracking-wide">
+                              TOTAL MUTASI AKUN {account.code} ({filteredItems.length} TRANSAKSI)
                             </td>
                             <td className="px-3 py-2.5 text-right font-mono-numbers text-emerald-800 font-bold">
                               {formatRupiah(subtotalIn)}
@@ -1052,15 +1583,15 @@ export const NeracaView: React.FC<NeracaViewProps> = ({
           <div className="flex items-start space-x-2">
             <Info className="w-4 h-4 text-emerald-700 mt-0.5 shrink-0" />
             <div>
-              <strong className="text-slate-800">Prinsip Akuntansi Kas Titipan Murni (Custodial Accounting):</strong>
+              <strong className="text-slate-800">Prinsip Pemisahan Kas Dua User di Neraca Pesantren:</strong>
               <p className="mt-0.5 text-slate-600 leading-relaxed">
-                1. <strong>Arus Setoran:</strong> Dana titipan uang saku dari orang tua menambah Kas Tunai / Bank (Aktiva) dan diakui seutuhnya sebagai Kewajiban Simpanan Wadiah Santri (Pasiva).
+                1. <strong>Tanggung Jawab User Bendahara (Akun 1-1000, 1-1010, 2-1000):</strong> Mengelola kas titipan uang saku (Akad Wadiah Murni). Uang saku adalah hak milik santri dan titipan orang tua untuk pencairan jajan harian dan kebutuhan santri.
               </p>
               <p className="text-slate-600 leading-relaxed">
-                2. <strong>Arus Penarikan:</strong> Pencairan uang jajan dan kebutuhan santri di loket mengurangi Kas Fisik Tunai Bendahara (Aktiva) dan langsung mendebet pos Kewajiban Simpanan Wadiah Santri (Pasiva).
+                2. <strong>Tanggung Jawab User Pengurus (Akun 1-1100, 1-1110, 2-2000):</strong> Mengelola kas penerimaan SPP syahriah bulanan untuk pembiayaan operasional pendidikan pesantren (gaji ustadz, dapur/konsumsi, fasilitas).
               </p>
               <p className="text-slate-600 leading-relaxed">
-                3. Total Aktiva (Kas Tunai + Kas Bank) selalu persis seimbang dengan Total Pasiva (Total Kewajiban Titipan Wadiah Seluruh Santri), tanpa selisih.
+                3. Seluruh transaksi kedua user ini tercatat secara terpisah dan transparan pada Neraca, dengan total aktiva terpadu persis seimbang dengan total pasiva terpadu tanpa selisih.
               </p>
             </div>
           </div>

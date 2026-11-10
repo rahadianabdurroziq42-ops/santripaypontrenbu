@@ -40,8 +40,7 @@ export const SantriSelectTable: React.FC<SantriSelectTableProps> = ({
       const matchGuardian = s.guardianName?.toLowerCase().includes(q) || false;
       const matchAcc = s.accountNumber.toLowerCase().includes(q);
       const matchNis = s.nisn.toLowerCase().includes(q);
-      const matchClass = s.className?.toLowerCase().includes(q) || false;
-      return matchName || matchGuardian || matchAcc || matchNis || matchClass;
+      return matchName || matchGuardian || matchAcc || matchNis;
     });
   }, [santriList, searchQuery]);
 
@@ -184,7 +183,7 @@ export const SantriSelectTable: React.FC<SantriSelectTableProps> = ({
                               {s.name}
                             </span>
                             <span className="text-[10px] text-slate-500 font-mono">
-                              NISN: {s.nisn} • {s.className || 'Kelas -'}
+                              NISN: {s.nisn}
                             </span>
                           </div>
                         </div>

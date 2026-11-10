@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { BookOpen, Printer, Search, CheckCircle2, Filter } from 'lucide-react';
+import { BookOpen, Search, CheckCircle2 } from 'lucide-react';
 import { Transaction, PesantrenProfile } from '../types/finance';
-import { generateJournalForTransaction, formatRupiah, formatDateIndo } from '../utils/accounting';
+import { generateJournalForTransaction, formatRupiah } from '../utils/accounting';
 import { PrintControlBar } from './PrintControlBar';
 
 interface JurnalUmumViewProps {

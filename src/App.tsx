@@ -46,6 +46,7 @@ import { NeracaView } from './components/NeracaView';
 import { RekeningKoranView } from './components/RekeningKoranView';
 import { LaporanRekapView } from './components/LaporanRekapView';
 import { SantriManagementView } from './components/SantriManagementView';
+import { ImportedSantriItem } from './components/ImportSantriModal';
 import { JurnalUmumView } from './components/JurnalUmumView';
 import { ProfilPesantrenView } from './components/ProfilPesantrenView';
 import { BukuKasUmumView } from './components/BukuKasUmumView';
@@ -902,6 +903,68 @@ export default function App() {
     }
   };
 
+  // Batch Import Santri Handler from Excel
+  const handleImportSantriList = (items: ImportedSantriItem[]) => {
+    const newSantriList: Santri[] = [];
+    const newTrxList: Transaction[] = [];
+    let currentIndex = santriList.length;
+
+    items.forEach((item, index) => {
+      currentIndex++;
+      const id = `snt-${String(currentIndex).padStart(3, '0')}`;
+      const accountNumber = `501.2026.${String(currentIndex).padStart(3, '0')}`;
+      const initialDeposit = item.initialDeposit > 0 ? item.initialDeposit : 0;
+
+      const newSantri: Santri = {
+        id,
+        accountNumber,
+        nisn: item.nisn,
+        name: item.name,
+        gender: item.gender,
+        className: item.className,
+        guardianName: item.guardianName,
+        guardianPhone: item.guardianPhone,
+        guardianAddress: item.guardianAddress,
+        balance: initialDeposit,
+        dailyAllowanceLimit: item.dailyAllowanceLimit || 10000,
+        status: 'AKTIF',
+        avatarSeed: item.name.split(' ')[0],
+        createdAt: todayStr,
+      };
+
+      newSantriList.push(newSantri);
+      saveSantriToCloud(newSantri).catch((e) => console.error('Cloud add imported santri error:', e));
+
+      if (initialDeposit > 0) {
+        const depositTrx: Transaction = {
+          id: `trx-${Date.now()}-${index}`,
+          transactionNo: `TRX-WDH-${todayStr.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
+          date: todayStr,
+          time: getCurrentTimeString(),
+          santriId: newSantri.id,
+          santriName: newSantri.name,
+          accountNumber: newSantri.accountNumber,
+          type: 'DEPOSIT_WADIAH',
+          amount: initialDeposit,
+          balanceBefore: 0,
+          balanceAfter: initialDeposit,
+          method: 'CASH',
+          tellerName: currentUser?.displayName ? `${currentUser.displayName} (Kasir Loket)` : 'Ust. H. Ahmad Fauzi (Kasir Loket)',
+          guardianSenderName: newSantri.guardianName,
+          notes: 'Setoran Awal Buka Rekening Wadiah (Impor Excel)',
+          category: 'Setoran Titipan Wali',
+        };
+        newTrxList.push(depositTrx);
+        saveTransactionToCloud(depositTrx).catch((e) => console.error('Cloud deposit trx error:', e));
+      }
+    });
+
+    setSantriList((prev) => [...prev, ...newSantriList]);
+    if (newTrxList.length > 0) {
+      setTransactions((prev) => [...newTrxList, ...prev]);
+    }
+  };
+
   // Update santri data handler (edit)
   const handleUpdateSantri = (updatedSantri: Santri) => {
     setSantriList((prev) => prev.map((s) => (s.id === updatedSantri.id ? updatedSantri : s)));
@@ -1162,6 +1225,7 @@ export default function App() {
                 transactions={transactions}
                 pesantrenProfile={pesantrenProfile}
                 onAddSantri={handleAddSantri}
+                onImportSantriList={handleImportSantriList}
                 onUpdateSantri={handleUpdateSantri}
                 onDeleteSantri={handleDeleteSantri}
                 onToggleFreezeSantri={handleToggleFreezeSantri}

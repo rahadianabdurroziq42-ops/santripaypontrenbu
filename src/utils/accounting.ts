@@ -217,7 +217,7 @@ export function calculateNeraca(
   // Filter transactions up to asOfDate
   const relevantTrx = transactions.filter((t) => t.date <= asOfDate);
 
-  // 1. Total Kewajiban Simpanan Wadiah Santri (Total Saldo Titipan Seluruh Santri)
+  // 1. KELOLAAN USER BENDAHARA (Titipan Uang Saku Santri - Akad Wadiah Murni)
   let totalTitipanWadiah = 0;
   let santriWithBalance = 0;
   santriList.forEach((s) => {
@@ -225,7 +225,6 @@ export function calculateNeraca(
     if (s.balance > 0) santriWithBalance++;
   });
 
-  // 2. Hitung penerimaan titipan orang tua & pengeluaran jajan santri
   let totalTitipanBank = 0;
   let totalTitipanTunai = 0;
   let totalJajanDitarik = 0;
@@ -233,39 +232,79 @@ export function calculateNeraca(
   let totalSetoranTitipan = 0;
   let countSetoranTitipan = 0;
 
+  // 2. KELOLAAN USER PENGURUS (Dana SPP Syahriah Pesantren)
+  let totalSPPBank = 0;
+  let totalSPPTunai = 0;
+  let totalPenarikanSPP = 0;
+  let countPenarikanSPP = 0;
+  let totalSetoranSPP = 0;
+  let countSetoranSPP = 0;
+
   relevantTrx.forEach((t) => {
-    if (isCreditTransaction(t.type)) {
-      totalSetoranTitipan += t.amount;
-      countSetoranTitipan++;
-      if ((t.method || '').includes('BANK')) {
-        totalTitipanBank += t.amount;
+    const isSPP = t.type === 'DEPOSIT_SPP' || t.type === 'WITHDRAWAL_SPP' || (t.category && t.category.includes('SPP'));
+    const isBank = (t.method || '').includes('BANK');
+
+    if (isSPP) {
+      if (t.type === 'DEPOSIT_SPP') {
+        totalSetoranSPP += t.amount;
+        countSetoranSPP++;
+        if (isBank) {
+          totalSPPBank += t.amount;
+        } else {
+          totalSPPTunai += t.amount;
+        }
       } else {
-        totalTitipanTunai += t.amount;
+        totalPenarikanSPP += t.amount;
+        countPenarikanSPP++;
       }
-    } else if (isDebitTransaction(t.type)) {
-      totalJajanDitarik += t.amount;
-      countJajanDitarik++;
+    } else {
+      if (isCreditTransaction(t.type)) {
+        totalSetoranTitipan += t.amount;
+        countSetoranTitipan++;
+        if (isBank) {
+          totalTitipanBank += t.amount;
+        } else {
+          totalTitipanTunai += t.amount;
+        }
+      } else if (isDebitTransaction(t.type)) {
+        totalJajanDitarik += t.amount;
+        countJajanDitarik++;
+      }
     }
   });
 
   // Alokasi kas titipan yang tersisa di Bank dan Tunai Bendahara
-  // Penarikan jajan santri ditarik secara tunai di loket bendahara
   let kasBankTitipan = totalTitipanBank;
   let kasTunaiTitipan = totalTitipanTunai - totalJajanDitarik;
 
-  // Jika penarikan tunai jajan santri melebihi uang tunai yang disetor langsung,
-  // maka sisa kas ditopang dari pencairan rekening bank titipan
   if (kasTunaiTitipan < 0) {
     kasBankTitipan = Math.max(0, kasBankTitipan + kasTunaiTitipan);
     kasTunaiTitipan = 0;
   }
 
-  // Pastikan total aktiva kas titipan persis seimbang dengan total saldo titipan wadiah
-  const totalAktiva = totalTitipanWadiah;
-  kasBankTitipan = Math.min(kasBankTitipan, totalAktiva);
-  kasTunaiTitipan = totalAktiva - kasBankTitipan;
+  const totalAktivaBendahara = totalTitipanWadiah;
+  kasBankTitipan = Math.min(kasBankTitipan, totalAktivaBendahara);
+  kasTunaiTitipan = totalAktivaBendahara - kasBankTitipan;
+  const totalPasivaBendahara = totalTitipanWadiah;
 
-  const totalPasiva = totalTitipanWadiah;
+  // Alokasi kas SPP Pengurus (1-1100 Kas Tunai SPP, 1-1110 Kas Bank SPP, 2-2000 Dana SPP)
+  const danaPenerimaanSPP = Math.max(0, totalSetoranSPP - totalPenarikanSPP);
+  let kasBankSPP = totalSPPBank;
+  let kasTunaiSPP = totalSPPTunai - totalPenarikanSPP;
+
+  if (kasTunaiSPP < 0) {
+    kasBankSPP = Math.max(0, kasBankSPP + kasTunaiSPP);
+    kasTunaiSPP = 0;
+  }
+
+  const totalAktivaPengurus = danaPenerimaanSPP;
+  kasBankSPP = Math.min(kasBankSPP, totalAktivaPengurus);
+  kasTunaiSPP = totalAktivaPengurus - kasBankSPP;
+  const totalPasivaPengurus = danaPenerimaanSPP;
+
+  // Total Terpadu Konsolidasi Pesantren
+  const totalAktiva = totalAktivaBendahara + totalAktivaPengurus;
+  const totalPasiva = totalPasivaBendahara + totalPasivaPengurus;
   const discrepancy = Math.abs(totalAktiva - totalPasiva);
 
   return {
@@ -273,10 +312,17 @@ export function calculateNeraca(
     aktiva: {
       kasTunaiTitipan,
       kasBankTitipan,
+      totalAktivaBendahara,
+      kasTunaiSPP,
+      kasBankSPP,
+      totalAktivaPengurus,
       totalAktiva,
     },
     pasiva: {
-      kewajibanTitipanWadiah: totalTitipanWadiah,
+      kewajibanTitipanWadiah: totalPasivaBendahara,
+      totalPasivaBendahara,
+      danaPenerimaanSPP,
+      totalPasivaPengurus,
       totalPasiva,
     },
     isBalanced: discrepancy === 0,
@@ -286,6 +332,10 @@ export function calculateNeraca(
     countPenarikanJajan: countJajanDitarik,
     totalSetoranTitipan,
     countSetoranTitipan,
+    totalSetoranSPP,
+    countSetoranSPP,
+    totalPenarikanSPP,
+    countPenarikanSPP,
   };
 }
 

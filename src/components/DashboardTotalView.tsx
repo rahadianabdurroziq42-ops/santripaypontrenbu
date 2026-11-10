@@ -4,8 +4,6 @@ import {
   Wallet, 
   Landmark, 
   HandCoins, 
-  Users, 
-  CheckCircle2, 
   ArrowDownLeft, 
   ArrowUpRight, 
   PlusCircle, 
@@ -13,7 +11,6 @@ import {
   Coins, 
   ShieldCheck, 
   Scale, 
-  Sparkles,
   ShoppingBag,
   GraduationCap,
   Calendar,
@@ -32,27 +29,27 @@ import { User } from 'firebase/auth';
 interface DashboardTotalViewProps {
   santriList: Santri[];
   transactions: Transaction[];
-  pesantrenProfile: PesantrenProfile;
+  pesantrenProfile?: PesantrenProfile;
   totalWadiah: number;
-  currentUser: AuthUser | User | null;
+  currentUser?: AuthUser | User | null;
   userRole?: 'PENGURUS' | 'BENDAHARA';
   isCloudConnected: boolean;
   onNavigateTab: (tabId: string) => void;
-  onOpenDeposit: () => void;
-  onOpenTellerForSantri: (santriId: string) => void;
+  onOpenDeposit?: () => void;
+  onOpenTellerForSantri?: (santriId: string) => void;
 }
 
 export const DashboardTotalView: React.FC<DashboardTotalViewProps> = ({
   santriList,
   transactions,
-  pesantrenProfile,
+  pesantrenProfile: _pesantrenProfile,
   totalWadiah,
-  currentUser,
+  currentUser: _currentUser,
   userRole = 'PENGURUS',
   isCloudConnected,
   onNavigateTab,
-  onOpenDeposit,
-  onOpenTellerForSantri,
+  onOpenDeposit: _onOpenDeposit,
+  onOpenTellerForSantri: _onOpenTellerForSantri,
 }) => {
   const todayStr = getTodayDateString();
 

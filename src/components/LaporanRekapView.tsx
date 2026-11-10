@@ -6,13 +6,8 @@ import {
   ArrowUpRight, 
   Search, 
   Calendar, 
-  Filter, 
   CheckCircle, 
-  Building2,
-  FileSpreadsheet,
-  CheckCircle2,
-  Wallet,
-  RotateCcw
+  Building2
 } from 'lucide-react';
 import { Transaction, Santri, PesantrenProfile } from '../types/finance';
 import { 
@@ -57,7 +52,6 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
 
   // Quick preset dates
   const setPreset = (type: 'TODAY' | 'LAST_7' | 'THIS_MONTH' | 'ALL') => {
-    const now = new Date();
     if (type === 'TODAY') {
       setStartDate(today);
       setEndDate(today);

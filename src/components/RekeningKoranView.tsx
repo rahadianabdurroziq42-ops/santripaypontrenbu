@@ -204,8 +204,8 @@ export const RekeningKoranView: React.FC<RekeningKoranViewProps> = ({
                 <span className="font-semibold text-slate-800">{statement.santri.nisn}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Asrama & Kelas</span>
-                <span className="font-medium text-slate-800">{statement.santri.dormitory} ({statement.santri.className})</span>
+                <span className="text-slate-500">Kelas / Jenjang</span>
+                <span className="font-semibold text-slate-800">{statement.santri.className}</span>
               </div>
             </div>
 

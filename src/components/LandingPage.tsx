@@ -3,11 +3,9 @@ import {
   Building2, 
   Search, 
   ShieldCheck, 
-  Wallet, 
   HandCoins, 
   Calendar, 
   Clock, 
-  UserCheck, 
   ArrowRight, 
   Lock, 
   CheckCircle2, 
@@ -494,7 +492,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           <span>•</span>
                           <span>No. Rek: <strong className="text-emerald-300 font-mono">{activeSantri.accountNumber}</strong></span>
                           <span>•</span>
-                          <span>{activeSantri.dormitory}</span>
+                          <span className="text-slate-300 font-medium">{activeSantri.className}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           Wali: {activeSantri.guardianName}

@@ -81,9 +81,6 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationModal
             <p className="text-[11px] text-slate-500 font-mono">
               Rek: {data.santri.accountNumber} • NISN: {data.santri.nisn}
             </p>
-            <p className="text-[11px] text-slate-500">
-              Asrama: {data.santri.dormitory}
-            </p>
           </div>
 
           {/* Rincian Transaksi */}

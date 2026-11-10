@@ -49,7 +49,7 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
 }) => {
   const [selectedSantriId, setSelectedSantriId] = useState<string>(santriList[0]?.id || '');
   const [selectedMonth, setSelectedMonth] = useState<string>('November 2026');
-  const [sppAmount, setSppAmount] = useState<number>(450000);
+  const [sppAmount, setSppAmount] = useState<number>(200000);
   const [method, setMethod] = useState<PaymentMethod>('CASH');
   const [payerName, setPayerName] = useState<string>('');
   const [notes, setNotes] = useState<string>('Pembayaran SPP Syahriah Pesantren');
@@ -158,22 +158,23 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                   </span>
                   <input
                     type="number"
-                    min={10000}
+                    min={50000}
+                    max={400000}
                     step={10000}
                     value={sppAmount}
                     onChange={(e) => setSppAmount(Number(e.target.value))}
                     className="w-full pl-9 pr-3 py-2 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono-numbers"
                   />
                 </div>
-                <div className="flex gap-1.5 mt-1.5">
-                  {[350000, 450000, 500000, 600000].map((preset) => (
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 mt-2">
+                  {[50000, 100000, 150000, 200000, 250000, 300000, 350000, 400000].map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setSppAmount(preset)}
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      className={`text-[10px] font-semibold py-1 px-1 rounded-lg border text-center transition-colors cursor-pointer ${
                         sppAmount === preset
-                          ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
+                          ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
                           : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                       }`}
                     >
@@ -181,6 +182,9 @@ export const SetorSPPView: React.FC<SetorSPPViewProps> = ({
                     </button>
                   ))}
                 </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Pilihan nominal SPP syahriah resmi: Rp 50.000 s/d Rp 400.000
+                </p>
               </div>
             </div>
 

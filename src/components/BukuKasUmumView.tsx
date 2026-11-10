@@ -102,7 +102,7 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
   }, [sortedChronological, startDate]);
 
   // Build BKU rows with running balance
-  const { bkuRows, totalPenerimaan, totalPengeluaran, closingBalance, totalTunai, totalBank } = useMemo(() => {
+  const { bkuRows, totalPenerimaan, totalPengeluaran, closingBalance } = useMemo(() => {
     let runningBalance = openingBalance;
     const rows: Array<{
       trx: Transaction;
@@ -208,9 +208,6 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
     };
   }, [sortedChronological, startDate, endDate, openingBalance, cashChannelFilter, typeFilter, searchQuery]);
 
-  const handlePrint = () => {
-    window.print();
-  };
 
   return (
     <div className="space-y-6">

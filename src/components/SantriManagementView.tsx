@@ -17,7 +17,8 @@ import {
   Trash2,
   ShieldAlert,
   UserCheck,
-  Sparkles
+  Sparkles,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Santri, Transaction, PesantrenProfile } from '../types/finance';
 import { 
@@ -26,12 +27,14 @@ import {
   getTodayDateString 
 } from '../utils/accounting';
 import { PrintControlBar } from './PrintControlBar';
+import { ImportSantriModal, ImportedSantriItem } from './ImportSantriModal';
 
 interface SantriManagementViewProps {
   santriList: Santri[];
   transactions: Transaction[];
   pesantrenProfile: PesantrenProfile;
   onAddSantri: (newSantri: Omit<Santri, 'id' | 'accountNumber' | 'createdAt'>, initialDeposit: number) => void;
+  onImportSantriList?: (items: ImportedSantriItem[]) => void;
   onUpdateSantri: (updatedSantri: Santri) => void;
   onDeleteSantri: (santriId: string) => void;
   onToggleFreezeSantri: (santriId: string, freeze: boolean) => void;
@@ -45,6 +48,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
   transactions,
   pesantrenProfile,
   onAddSantri,
+  onImportSantriList,
   onUpdateSantri,
   onDeleteSantri,
   onToggleFreezeSantri,
@@ -53,11 +57,11 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
   onViewStatementForSantri,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDormitory, setSelectedDormitory] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AKTIF' | 'DIBEKUKAN' | 'CUTI_ALUMNI'>('ALL');
   
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingSantri, setEditingSantri] = useState<Santri | null>(null);
   const [freezingSantri, setFreezingSantri] = useState<Santri | null>(null);
   const [unfreezingSantri, setUnfreezingSantri] = useState<Santri | null>(null);
@@ -74,26 +78,22 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
     }, 4000);
   };
 
-  // Form state for adding new Santri
+  // Form state for adding new Santri (Tanpa Asrama & Tanpa Kelas)
   const [formData, setFormData] = useState({
     name: '',
     nisn: '',
     gender: 'L' as 'L' | 'P',
-    dormitory: 'Asrama Al-Fatih - Kamar 01',
-    className: 'Kelas 1 Aliyah (SMA)',
     guardianName: '',
     guardianPhone: '',
     guardianAddress: '',
     initialDeposit: 200000,
   });
 
-  // Edit form state
+  // Edit form state (Tanpa Asrama & Tanpa Kelas)
   const [editFormData, setEditFormData] = useState<{
     name: string;
     nisn: string;
     gender: 'L' | 'P';
-    dormitory: string;
-    className: string;
     guardianName: string;
     guardianPhone: string;
     guardianAddress: string;
@@ -103,8 +103,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
     name: '',
     nisn: '',
     gender: 'L',
-    dormitory: '',
-    className: '',
     guardianName: '',
     guardianPhone: '',
     guardianAddress: '',
@@ -121,9 +119,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
   const alumniCutiCount = santriList.filter((s) => s.status === 'ALUMNI' || s.status === 'CUTI').length;
   const totalWadiahBalance = santriList.reduce((acc, curr) => acc + curr.balance, 0);
 
-  // Dormitories list
-  const dormitories = Array.from(new Set(santriList.map((s) => s.dormitory.split(' - ')[0])));
-
   // Filtered Santri List
   const filteredSantri = santriList.filter((s) => {
     const q = searchTerm.toLowerCase().trim();
@@ -133,17 +128,14 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
       s.nisn.toLowerCase().includes(q) ||
       s.accountNumber.toLowerCase().includes(q) ||
       s.guardianName.toLowerCase().includes(q) ||
-      s.dormitory.toLowerCase().includes(q) ||
-      s.className.toLowerCase().includes(q);
-
-    const matchesDorm = selectedDormitory === 'ALL' || s.dormitory.startsWith(selectedDormitory);
+      s.guardianPhone.toLowerCase().includes(q);
 
     let matchesStatus = true;
     if (statusFilter === 'AKTIF') matchesStatus = s.status === 'AKTIF';
     else if (statusFilter === 'DIBEKUKAN') matchesStatus = s.status === 'DIBEKUKAN' || s.status === 'NONAKTIF';
     else if (statusFilter === 'CUTI_ALUMNI') matchesStatus = s.status === 'CUTI' || s.status === 'ALUMNI';
 
-    return matchesSearch && matchesDorm && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   // Open Edit Modal
@@ -153,8 +145,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
       name: santri.name,
       nisn: santri.nisn,
       gender: santri.gender,
-      dormitory: santri.dormitory,
-      className: santri.className,
       guardianName: santri.guardianName,
       guardianPhone: santri.guardianPhone || '',
       guardianAddress: santri.guardianAddress || '',
@@ -173,8 +163,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
       name: editFormData.name.trim(),
       nisn: editFormData.nisn.trim(),
       gender: editFormData.gender,
-      dormitory: editFormData.dormitory.trim(),
-      className: editFormData.className.trim(),
       guardianName: editFormData.guardianName.trim(),
       guardianPhone: editFormData.guardianPhone.trim(),
       guardianAddress: editFormData.guardianAddress.trim(),
@@ -221,8 +209,6 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
         name: formData.name,
         nisn: formData.nisn,
         gender: formData.gender,
-        dormitory: formData.dormitory,
-        className: formData.className,
         guardianName: formData.guardianName,
         guardianPhone: formData.guardianPhone || '0812-0000-0000',
         guardianAddress: formData.guardianAddress || 'Alamat Wali Santri',
@@ -241,13 +227,37 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
       name: '',
       nisn: '',
       gender: 'L',
-      dormitory: 'Asrama Al-Fatih - Kamar 01',
-      className: 'Kelas 1 Aliyah (SMA)',
       guardianName: '',
       guardianPhone: '',
       guardianAddress: '',
       initialDeposit: 200000,
     });
+  };
+
+  // Handle Confirm Import from Excel
+  const handleConfirmImport = (importedItems: ImportedSantriItem[]) => {
+    if (onImportSantriList) {
+      onImportSantriList(importedItems);
+    } else {
+      importedItems.forEach((item) => {
+        onAddSantri(
+          {
+            name: item.name,
+            nisn: item.nisn,
+            gender: item.gender,
+            guardianName: item.guardianName,
+            guardianPhone: item.guardianPhone,
+            guardianAddress: item.guardianAddress,
+            balance: 0,
+            dailyAllowanceLimit: item.dailyAllowanceLimit,
+            status: 'AKTIF',
+            avatarSeed: item.name.split(' ')[0],
+          },
+          item.initialDeposit
+        );
+      });
+    }
+    showToast(`Berhasil mengimpor ${importedItems.length} data santri baru dari Excel!`, 'success');
   };
 
   return (
@@ -411,19 +421,15 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
             <option value="CUTI_ALUMNI">Cuti / Alumni ({alumniCutiCount})</option>
           </select>
 
-          {/* Dormitory Dropdown */}
-          <select
-            value={selectedDormitory}
-            onChange={(e) => setSelectedDormitory(e.target.value)}
-            className="px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          {/* Class Dropdown */}
+          {/* Import Excel Button */}
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
           >
-            <option value="ALL">Semua Asrama</option>
-            {dormitories.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Impor Data Santri (Excel)</span>
+          </button>
 
           {/* Add Santri Button */}
           <button
@@ -444,8 +450,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
               <tr className="bg-slate-900 text-white uppercase text-[11px] tracking-wider">
                 <th className="px-4 py-3 text-left w-28">No. Rekening</th>
                 <th className="px-4 py-3 text-left">Nama Santri & NISN</th>
-                <th className="px-4 py-3 text-left">Asrama & Kelas</th>
-                <th className="px-4 py-3 text-left">Wali Santri</th>
+                <th className="px-4 py-3 text-left">Wali Santri & Domisili</th>
                 <th className="px-4 py-3 text-right w-32">Saldo Wadiah</th>
                 <th className="px-4 py-3 text-center w-36">Status Rekening</th>
                 <th className="px-4 py-3 text-center w-52 no-print">Aksi & Manajemen</th>
@@ -454,7 +459,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredSantri.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400 italic">
+                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400 italic">
                     Tidak ditemukan santri yang sesuai dengan kata kunci pencarian.
                   </td>
                 </tr>
@@ -462,6 +467,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 filteredSantri.map((santri) => {
                   const eligibility = checkDailyAllowanceEligibility(santri, transactions, todayStr);
                   const isFrozen = santri.status === 'DIBEKUKAN' || santri.status === 'NONAKTIF';
+                  const isCuti = santri.status === 'CUTI';
                   const isAktif = santri.status === 'AKTIF';
 
                   return (
@@ -512,16 +518,13 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Dormitory & Class */}
+                      {/* Guardian & Address */}
                       <td className="px-4 py-3 text-slate-700">
-                        <p className="font-medium">{santri.dormitory}</p>
-                        <p className="text-[10px] text-slate-500">{santri.className}</p>
-                      </td>
-
-                      {/* Guardian */}
-                      <td className="px-4 py-3 text-slate-700">
-                        <p className="font-semibold">{santri.guardianName}</p>
+                        <p className="font-semibold text-slate-900">{santri.guardianName}</p>
                         <p className="text-[10px] text-slate-500 font-mono">{santri.guardianPhone}</p>
+                        {santri.guardianAddress && (
+                          <p className="text-[10px] text-slate-400 truncate max-w-[190px]">{santri.guardianAddress}</p>
+                        )}
                       </td>
 
                       {/* Saldo Wadiah */}
@@ -703,37 +706,18 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 </div>
               </div>
 
-              {/* Gender, Asrama, Kelas */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
-                  <select
-                    value={editFormData.gender}
-                    onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value as 'L' | 'P' })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="L">Laki-laki (Ikhwan)</option>
-                    <option value="P">Perempuan (Akhwat)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Asrama</label>
-                  <input
-                    type="text"
-                    value={editFormData.dormitory}
-                    onChange={(e) => setEditFormData({ ...editFormData, dormitory: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Kelas</label>
-                  <input
-                    type="text"
-                    value={editFormData.className}
-                    onChange={(e) => setEditFormData({ ...editFormData, className: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
+              {/* Gender & Kelas */}
+              {/* Jenis Kelamin */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
+                <select
+                  value={editFormData.gender}
+                  onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value as 'L' | 'P' })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="L">Laki-laki (Ikhwan)</option>
+                  <option value="P">Perempuan (Akhwat)</option>
+                </select>
               </div>
 
               {/* Data Wali */}
@@ -915,8 +899,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 <div className="bg-white p-3 rounded-lg border border-emerald-200 text-xs space-y-1">
                   <p><span className="text-slate-500">Nama Santri:</span> <strong className="text-slate-900">{unfreezingSantri.name}</strong></p>
                   <p><span className="text-slate-500">No. Rekening:</span> <span className="font-mono font-bold text-slate-800">{unfreezingSantri.accountNumber}</span></p>
-                  <p><span className="text-slate-500">Saldo Wadiah Tersedia:</span> <strong className="text-emerald-800 font-mono font-black">{formatRupiah(unfreezingSantri.balance)}</strong></p>
-                  <p><span className="text-slate-500">Asrama & Kelas:</span> <span>{unfreezingSantri.dormitory} - {unfreezingSantri.className}</span></p>
+                  <p><span className="text-slate-500">Wali Santri:</span> <strong className="text-slate-800">{unfreezingSantri.guardianName}</strong></p>
                 </div>
               </div>
 
@@ -1075,36 +1058,17 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'L' | 'P' })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="L">Laki-laki (Ikhwan)</option>
-                    <option value="P">Perempuan (Akhwat)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Asrama</label>
-                  <input
-                    type="text"
-                    value={formData.dormitory}
-                    onChange={(e) => setFormData({ ...formData, dormitory: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Kelas</label>
-                  <input
-                    type="text"
-                    value={formData.className}
-                    onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
+              {/* Jenis Kelamin */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'L' | 'P' })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="L">Laki-laki (Ikhwan)</option>
+                  <option value="P">Perempuan (Akhwat)</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1229,7 +1193,7 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
                         {selectedCardSantri.name}
                       </p>
                       <p className="text-[8px] text-slate-400">
-                        NISN: {selectedCardSantri.nisn} • {selectedCardSantri.dormitory.split(' - ')[0]}
+                        NISN: {selectedCardSantri.nisn} • Wali: {selectedCardSantri.guardianName}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1271,6 +1235,14 @@ export const SantriManagementView: React.FC<SantriManagementViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Impor Excel */}
+      <ImportSantriModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        existingSantriList={santriList}
+        onConfirmImport={handleConfirmImport}
+      />
     </div>
   );
 };

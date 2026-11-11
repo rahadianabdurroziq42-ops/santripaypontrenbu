@@ -16,7 +16,9 @@ import {
   getTodayDateString, 
   getCurrentTimeString,
   formatRupiah,
-  formatPaymentMethodLabel
+  formatPaymentMethodLabel,
+  isCreditTransaction,
+  isDebitTransaction
 } from './utils/accounting';
 import {
   auth,
@@ -33,6 +35,7 @@ import {
   saveProfileToCloud,
   seedInitialDataToCloud,
   replaceAllSantriInCloud,
+  purgeSampleDataFromCloud,
 } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -66,6 +69,44 @@ const STORAGE_KEY_SANTRI = 'santripay_santri_v1';
 const STORAGE_KEY_TRX = 'santripay_transactions_v1';
 const STORAGE_KEY_PROFILE = 'santripay_profile_v1';
 const STORAGE_KEY_AUTH = 'santripay_auth_bendahara_v1';
+
+// Daftar santri sample awal yang harus dimusnahkan secara menyeluruh
+const SAMPLE_SANTRI_NAMES = [
+  'Muhammad Rayhan Pratama',
+  'Aisyah Nur Ramadhani',
+  'Ahmad Fadhil Muzakki',
+  'Fatimah Azzahra',
+  'M. Bilal Habiburrahman',
+  'Khadijah Al-Munawwarah',
+  'Ibrahim Malik Ibrahim',
+  'Zahra Khairunnisa',
+];
+
+const SAMPLE_TRX_IDS = new Set([
+  'trx-101', 'trx-102', 'trx-103', 'trx-104', 'trx-105', 'trx-106', 'trx-107', 'trx-108',
+  'trx-201', 'trx-202', 'trx-203', 'trx-204', 'trx-205', 'trx-206', 'trx-207', 'trx-208',
+  'trx-301', 'trx-302', 'trx-303', 'trx-304', 'trx-305',
+  'trx-spp-001', 'trx-spp-002', 'trx-spp-003'
+]);
+
+export function isSampleSantri(santri: Santri): boolean {
+  if (!santri) return false;
+  return (
+    SAMPLE_SANTRI_NAMES.includes(santri.name) ||
+    ['snt-001', 'snt-002', 'snt-003', 'snt-004', 'snt-005', 'snt-006', 'snt-007', 'snt-008'].includes(santri.id)
+  );
+}
+
+export function isSampleTransaction(t: Transaction): boolean {
+  if (!t) return false;
+  if (SAMPLE_TRX_IDS.has(t.id)) return true;
+  if (t.transactionNo && (t.transactionNo.includes('20261001-001') || t.transactionNo.includes('20261010-003'))) return true;
+  if (SAMPLE_SANTRI_NAMES.includes(t.santriName)) return true;
+  if (t.santriId && ['snt-001', 'snt-002', 'snt-003', 'snt-004', 'snt-005', 'snt-006', 'snt-007', 'snt-008'].includes(t.santriId)) {
+    return true;
+  }
+  return false;
+}
 
 // Helpers to ensure account numbers are strictly 501.2026.xxx
 function normalizeSantriList(list: Santri[]): Santri[] {
@@ -112,25 +153,39 @@ export default function App() {
     return Boolean(localStorage.getItem(STORAGE_KEY_AUTH));
   });
 
-  // Load state from localStorage or initial seeds
+  // Load state from localStorage with strict filtering to eliminate any sample data
   const [santriList, setSantriList] = useState<Santri[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SANTRI);
-      if (saved) return normalizeSantriList(JSON.parse(saved));
+      if (saved) {
+        const parsed = normalizeSantriList(JSON.parse(saved));
+        const clean = parsed.filter((s) => !isSampleSantri(s));
+        if (clean.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(clean));
+        }
+        return clean;
+      }
     } catch (e) {
       console.error('Failed to load santri data from storage', e);
     }
-    return normalizeSantriList(initialSantriList);
+    return [];
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TRX);
-      if (saved) return normalizeTransactionsList(JSON.parse(saved));
+      if (saved) {
+        const parsed = normalizeTransactionsList(JSON.parse(saved));
+        const clean = parsed.filter((t) => !isSampleTransaction(t));
+        if (clean.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(clean));
+        }
+        return clean;
+      }
     } catch (e) {
       console.error('Failed to load transactions data from storage', e);
     }
-    return normalizeTransactionsList(initialTransactions);
+    return [];
   });
 
   const [pesantrenProfile, setPesantrenProfile] = useState<PesantrenProfile>(() => {
@@ -165,12 +220,8 @@ export default function App() {
   // Initialize Firebase connection & Auth listener
   useEffect(() => {
     testConnection();
-    // Only seed initial sample data on first run if local storage is completely fresh
-    const hasInitialized = localStorage.getItem('santripay_initialized');
-    if (!hasInitialized) {
-      seedInitialDataToCloud(santriList, transactions, pesantrenProfile);
-      localStorage.setItem('santripay_initialized', 'true');
-    }
+    // Musnahkan data sample dari Cloud Firestore jika masih tersisa
+    purgeSampleDataFromCloud().catch((e) => console.warn('Purge sample error:', e));
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -205,7 +256,8 @@ export default function App() {
     const unsubSantri = subscribeToSantri(
       (cloudSantri) => {
         if (cloudSantri) {
-          setSantriList(normalizeSantriList(cloudSantri));
+          const clean = cloudSantri.filter((s) => !isSampleSantri(s));
+          setSantriList(normalizeSantriList(clean));
         }
       },
       (err) => {
@@ -216,7 +268,8 @@ export default function App() {
     const unsubTrx = subscribeToTransactions(
       (cloudTrx) => {
         if (cloudTrx) {
-          const normalizedCloud = normalizeTransactionsList(cloudTrx);
+          const clean = cloudTrx.filter((t) => !isSampleTransaction(t));
+          const normalizedCloud = normalizeTransactionsList(clean);
           normalizedCloud.sort((a, b) => {
             const dComp = b.date.localeCompare(a.date);
             if (dComp !== 0) return dComp;
@@ -272,6 +325,100 @@ export default function App() {
       console.error('Error saving profile data', e);
     }
   }, [pesantrenProfile]);
+
+  // Otomatis sinkronkan transaksi agar 100% selaras dengan daftar santri aktif
+  // 1. Hilangkan seluruh catatan transaksi yang tidak bersangkut-paut dengan santri aktif
+  // 2. Pastikan saldo awal santri tercatat di transaksi sehingga: Saldo Kas = Total Saldo Santri
+  useEffect(() => {
+    if (santriList.length === 0) {
+      if (transactions.length > 0) {
+        setTransactions([]);
+        try {
+          localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify([]));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return;
+    }
+
+    const activeIds = new Set(santriList.map((s) => s.id));
+    const activeNames = new Set(santriList.map((s) => s.name));
+
+    // 1. Bersihkan transaksi lama/zombie yang merujuk ke santri yang sudah dihapus atau sample data
+    const validTrx = transactions.filter((t) => {
+      if (!t) return false;
+      if (isSampleTransaction(t)) return false;
+      if (t.type === 'DEPOSIT_SPP' && !t.santriId) return true;
+      return (t.santriId && activeIds.has(t.santriId)) || activeNames.has(t.santriName);
+    });
+
+    let modified = validTrx.length !== transactions.length;
+    const finalTrxList = [...validTrx];
+
+    // 2. Untuk setiap santri aktif dengan saldo > 0: pastikan ada transaksi setorannya
+    santriList.forEach((s, idx) => {
+      if (s.balance <= 0) return;
+
+      const myTrx = finalTrxList.filter((t) => t.santriId === s.id || t.santriName === s.name);
+      const totalIn = myTrx.filter((t) => isCreditTransaction(t.type)).reduce((acc, t) => acc + t.amount, 0);
+      const totalOut = myTrx.filter((t) => isDebitTransaction(t.type)).reduce((acc, t) => acc + t.amount, 0);
+      const net = totalIn - totalOut;
+
+      const existingInitialIdx = finalTrxList.findIndex((t) => t.id === `trx-saldoawal-${s.id}`);
+
+      if (existingInitialIdx !== -1) {
+        if (net !== s.balance) {
+          const currentInit = finalTrxList[existingInitialIdx];
+          const adjustedAmount = Math.max(0, currentInit.amount + (s.balance - net));
+          finalTrxList[existingInitialIdx] = {
+            ...currentInit,
+            amount: adjustedAmount,
+            balanceAfter: s.balance,
+          };
+          modified = true;
+          saveTransactionToCloud(finalTrxList[existingInitialIdx]).catch((e) => console.warn('Cloud save error:', e));
+        }
+      } else if (myTrx.length === 0 || net !== s.balance) {
+        const diff = s.balance - net;
+        const initialTrx: Transaction = {
+          id: `trx-saldoawal-${s.id}`,
+          transactionNo: `TRX-WDH-${todayStr.replace(/-/g, '')}-${String(idx + 1).padStart(3, '0')}`,
+          date: s.createdAt || todayStr,
+          time: '08:00:00',
+          santriId: s.id,
+          santriName: s.name,
+          accountNumber: s.accountNumber,
+          type: 'DEPOSIT_WADIAH',
+          amount: myTrx.length === 0 ? s.balance : Math.max(0, diff),
+          balanceBefore: 0,
+          balanceAfter: s.balance,
+          method: 'CASH',
+          tellerName: 'Kasir Loket Bendahara',
+          guardianSenderName: s.guardianName || 'Wali Santri',
+          notes: 'Setoran Saldo Awal Titipan Wadiah Siswa',
+          category: 'Setoran Titipan Wali',
+        };
+        finalTrxList.unshift(initialTrx);
+        modified = true;
+        saveTransactionToCloud(initialTrx).catch((e) => console.warn('Cloud save error:', e));
+      }
+    });
+
+    if (modified) {
+      finalTrxList.sort((a, b) => {
+        const dComp = b.date.localeCompare(a.date);
+        if (dComp !== 0) return dComp;
+        return (b.time || '').localeCompare(a.time || '');
+      });
+      setTransactions(finalTrxList);
+      try {
+        localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(finalTrxList));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [santriList]);
 
   // Derived metrics
   const totalWadiah = santriList.reduce((acc, curr) => acc + curr.balance, 0);
@@ -910,7 +1057,7 @@ export default function App() {
 
     items.forEach((item, index) => {
       currentIndex++;
-      const id = `snt-${String(currentIndex).padStart(3, '0')}`;
+      const id = `santri-${Date.now()}-${String(currentIndex).padStart(3, '0')}`;
       const accountNumber = `501.2026.${String(currentIndex).padStart(3, '0')}`;
       const initialDeposit = item.initialDeposit > 0 ? item.initialDeposit : 0;
 
@@ -1029,7 +1176,7 @@ export default function App() {
     }
   };
 
-  // Reset to initial seeds (triggers modal instead of window.confirm)
+  // Reset to clean initial (triggers modal instead of window.confirm)
   const handleResetData = () => {
     setIsResetConfirmOpen(true);
   };
@@ -1038,15 +1185,12 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY_SANTRI);
     localStorage.removeItem(STORAGE_KEY_TRX);
     localStorage.removeItem(STORAGE_KEY_PROFILE);
-    setSantriList(normalizeSantriList(initialSantriList));
-    setTransactions(normalizeTransactionsList(initialTransactions));
+    setSantriList([]);
+    setTransactions([]);
     setPesantrenProfile(defaultPesantrenProfile);
 
-    seedInitialDataToCloud(
-      normalizeSantriList(initialSantriList),
-      normalizeTransactionsList(initialTransactions),
-      defaultPesantrenProfile
-    ).catch((e) => console.error('Cloud seed reset error:', e));
+    // Bersihkan seluruh koleksi di Cloud Firestore agar 100% bersih
+    replaceAllSantriInCloud([], []).catch((e) => console.error('Cloud seed reset error:', e));
 
     setIsResetConfirmOpen(false);
   };
@@ -1388,10 +1532,10 @@ export default function App() {
               <RotateCcw className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900">
-              Atur Ulang Data Simulasi Pesantren?
+              Kosongkan & Bersihkan Seluruh Data?
             </h3>
             <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-              Tindakan ini akan mengembalikan data santri, transaksi wadiah, dan profil pesantren ke setelan awal default (dengan format nomor rekening <strong>501.2026.xxx</strong>).
+              Tindakan ini akan mengosongkan seluruh data transaksi dan saldo santri (Rp 0), sehingga siap untuk diisi dengan data murni hasil impor Excel Anda.
             </p>
             <div className="mt-6 flex items-center justify-end space-x-3">
               <button

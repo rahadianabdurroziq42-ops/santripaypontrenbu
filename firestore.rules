@@ -54,7 +54,7 @@ service cloud.firestore {
         data.date is string && data.date.size() <= 20 &&
         data.santriId is string && data.santriId.size() <= 128 &&
         data.type is string && data.type.size() <= 50 &&
-        data.amount is number && data.amount > 0 &&
+        data.amount is number && data.amount >= 0 &&
         data.balanceAfter is number && data.balanceAfter >= 0 &&
         (!('time' in data) || (data.time is string && data.time.size() <= 20)) &&
         (!('santriName' in data) || (data.santriName is string && data.santriName.size() <= 150)) &&
@@ -106,12 +106,11 @@ service cloud.firestore {
       allow delete: if isValidId(santriId);
     }
 
-    // Transactions collection rules (Append-only immutable financial ledger, allowed delete for total data reset / re-import)
+    // Transactions collection rules (Append & update for valid transactions, allowed delete for total data reset / re-import)
     match /transactions/{transactionId} {
       allow read: if true;
-      allow create: if isValidId(transactionId) && isValidTransaction(incoming());
-      allow update: if false; // Strict financial ledger immutability
-      allow delete: if isValidId(transactionId); // Allowed during total data reset / Excel re-import
+      allow create, update: if isValidId(transactionId) && isValidTransaction(incoming());
+      allow delete: if isValidId(transactionId);
     }
 
     // Pesantren Settings / Profile (Public read for Kop & Logo, validated writes)

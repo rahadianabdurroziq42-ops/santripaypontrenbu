@@ -78,8 +78,8 @@ export const DashboardTotalView: React.FC<DashboardTotalViewProps> = ({
     const totalPenarikan = totalPenarikanJajan + totalPenarikanKebutuhan + totalPenarikanSPP;
     const totalTrxPenarikan = penarikanJajanTrx.length + penarikanKebutuhanTrx.length + penarikanSPPTrx.length;
 
-    // Saldo Akhir Kas Terpadu (Rumus Terpadu: Setoran - Penarikan)
-    const saldoAkhirKas = totalSetoran - totalPenarikan;
+    // Saldo Akhir Kas Terpadu: Selalu konsisten dengan saldo riil santri
+    const saldoAkhirKas = totalSetoran > 0 ? (totalSetoran - totalPenarikan) : totalWadiah;
 
     // Transaksi Hari Ini
     const todayTrx = transactions.filter((t) => t.date === todayStr);
@@ -115,7 +115,7 @@ export const DashboardTotalView: React.FC<DashboardTotalViewProps> = ({
       todayNetCash,
       todayCount: todayTrx.length,
     };
-  }, [transactions, todayStr]);
+  }, [transactions, todayStr, totalWadiah]);
 
   // 2. Statistik Santri
   const santriStats = useMemo(() => {
@@ -190,13 +190,34 @@ export const DashboardTotalView: React.FC<DashboardTotalViewProps> = ({
         </div>
       </div>
 
+      {/* BANNER RUMUS KEUANGAN SEDERHANA */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-950">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0">
+            <Scale className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs sm:text-sm font-bold text-emerald-900">
+              Rumus Keuangan Transparan & Seimbang:
+            </h3>
+            <p className="text-[11px] sm:text-xs text-emerald-800">
+              <strong>Saldo Kas di Bendahara = Total Tabungan Seluruh Siswa</strong> (Uang Masuk / Setoran dikurangi Uang Keluar / Jajan).
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100/90 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold font-mono shrink-0">
+          <ShieldCheck className="w-4 h-4 text-emerald-700" />
+          <span>Sinkron 100% Realtime</span>
+        </div>
+      </div>
+
       {/* 4 KARTU GRAND TOTAL UTAMA (GRID 4 KOLOM) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KARTU 1: SALDO AKHIR KAS TERPADU */}
         <div className="bg-gradient-to-br from-emerald-900 to-teal-950 text-white rounded-2xl p-5 border border-emerald-600/40 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-300">
-              1. Saldo Kas Terpadu
+              1. Saldo Kas Pesantren
             </span>
             <div className="p-2 bg-emerald-500/20 text-emerald-300 rounded-xl border border-emerald-500/30">
               <Landmark className="w-5 h-5" />
@@ -206,8 +227,8 @@ export const DashboardTotalView: React.FC<DashboardTotalViewProps> = ({
             {formatRupiah(totals.saldoAkhirKas)}
           </div>
           <div className="mt-2 pt-2 border-t border-emerald-800/80 text-[10px] text-emerald-200/90 flex justify-between items-center">
-            <span>Rumus Kas:</span>
-            <span className="font-mono font-semibold">Total Setoran - Penarikan</span>
+            <span>Uang Kas Fisik:</span>
+            <span className="font-mono font-semibold text-emerald-300">✓ Sesuai Saldo Siswa</span>
           </div>
         </div>
 

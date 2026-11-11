@@ -269,7 +269,80 @@ export async function seedInitialDataToCloud(
   } catch (error) {
     console.error('Error during cloud seeding check:', error);
   }
-}// Bulk replace entire santri and transactions collection in Cloud Firestore
+}
+
+// Purge any sample santri or sample transactions from Cloud Firestore
+export async function purgeSampleDataFromCloud(): Promise<void> {
+  try {
+    const sampleNames = [
+      'Muhammad Rayhan Pratama',
+      'Aisyah Nur Ramadhani',
+      'Ahmad Fadhil Muzakki',
+      'Fatimah Azzahra',
+      'M. Bilal Habiburrahman',
+      'Khadijah Al-Munawwarah',
+      'Ibrahim Malik Ibrahim',
+      'Zahra Khairunnisa',
+    ];
+    const sampleTrxIds = [
+      'trx-101', 'trx-102', 'trx-103', 'trx-104', 'trx-105', 'trx-106', 'trx-107', 'trx-108',
+      'trx-201', 'trx-202', 'trx-203', 'trx-204', 'trx-205', 'trx-206', 'trx-207', 'trx-208',
+      'trx-301', 'trx-302', 'trx-303', 'trx-304', 'trx-305',
+      'trx-spp-001', 'trx-spp-002', 'trx-spp-003'
+    ];
+
+    const santriSnap = await getDocs(collection(db, 'santri'));
+    const deleteBatch = writeBatch(db);
+    let count = 0;
+
+    santriSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (
+        sampleNames.includes(data.name) ||
+        docSnap.id === 'snt-001' ||
+        docSnap.id === 'snt-002' ||
+        docSnap.id === 'snt-003' ||
+        docSnap.id === 'snt-004' ||
+        docSnap.id === 'snt-005' ||
+        docSnap.id === 'snt-006' ||
+        docSnap.id === 'snt-007' ||
+        docSnap.id === 'snt-008'
+      ) {
+        deleteBatch.delete(docSnap.ref);
+        count++;
+      }
+    });
+
+    const trxSnap = await getDocs(collection(db, 'transactions'));
+    trxSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (
+        sampleTrxIds.includes(docSnap.id) ||
+        sampleNames.includes(data.santriName) ||
+        docSnap.id.startsWith('trx-10') ||
+        docSnap.id.startsWith('trx-20') ||
+        docSnap.id.startsWith('trx-spp-') ||
+        data.santriId === 'snt-001' ||
+        data.santriId === 'snt-002' ||
+        data.santriId === 'snt-003' ||
+        data.santriId === 'snt-004' ||
+        data.santriId === 'snt-005'
+      ) {
+        deleteBatch.delete(docSnap.ref);
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      await deleteBatch.commit();
+      console.log(`Purged ${count} sample documents from Cloud Firestore.`);
+    }
+  } catch (error) {
+    console.warn('Notice saat purge sample data:', error);
+  }
+}
+
+// Bulk replace entire santri and transactions collection in Cloud Firestore
 export async function replaceAllSantriInCloud(
   newSantriList: Santri[],
   newInitialTransactions: Transaction[] = []

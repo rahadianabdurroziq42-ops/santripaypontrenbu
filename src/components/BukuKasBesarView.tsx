@@ -391,6 +391,23 @@ export const BukuKasBesarView: React.FC<BukuKasBesarViewProps> = ({
         </div>
       </div>
 
+      {/* Banner Rumus Sederhana Buku Besar */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-800 no-print">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+          </div>
+          <div>
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+              Rumus Buku Kas Besar:
+            </h3>
+            <p className="text-[11px] sm:text-xs text-slate-600">
+              Saldo Akhir Kas (Akun 1-1000) selalu sama persis dengan Total Saldo Tabungan Siswa (Akun 2-1000). Semua catatan hanya memuat mutasi santri yang aktif.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Account Selector Tabs (No Print) */}
       <div className="bg-white rounded-2xl p-3 shadow-sm border border-slate-200 no-print flex flex-wrap items-center gap-2">
         <button

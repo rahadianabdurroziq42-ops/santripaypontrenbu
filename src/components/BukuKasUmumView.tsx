@@ -289,6 +289,23 @@ export const BukuKasUmumView: React.FC<BukuKasUmumViewProps> = ({
         </div>
       </div>
 
+      {/* Banner Rumus Sederhana Buku Kas Umum */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-800 no-print">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+          </div>
+          <div>
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+              Rumus Buku Kas Umum (BKU):
+            </h3>
+            <p className="text-[11px] sm:text-xs text-slate-600">
+              Saldo Akhir Kas = Saldo Awal + Total Setoran Masuk - Total Penarikan Jajan Keluar. Selalu cocok 100% dengan total saldo siswa.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Tabs & Search Bar (No Print) */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 no-print flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">

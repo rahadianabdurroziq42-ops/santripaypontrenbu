@@ -183,16 +183,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <span className={`text-[10px] font-bold ${userRole === 'PENGURUS' ? 'text-amber-800' : 'text-teal-800'}`}>
                     {userRole === 'PENGURUS' ? 'Pengurus (Full Akses)' : 'Bendahara (Kasir Loket)'}
                   </span>
-                  {onToggleRole && (
-                    <button
-                      type="button"
-                      onClick={onToggleRole}
-                      className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-colors cursor-pointer"
-                      title="Klik untuk beralih antara peran Pengurus dan Bendahara"
-                    >
-                      Ganti Peran ⇄
-                    </button>
-                  )}
                 </div>
               </div>
               <button

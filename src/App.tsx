@@ -1084,7 +1084,6 @@ export default function App() {
         onResetData={handleResetData}
         isOpenMobile={isOpenMobile}
         onCloseMobile={() => setIsOpenMobile(false)}
-        onToggleRole={handleToggleRole}
       />
 
       {/* Main Content Area (Offset by Sidebar width on desktop md:pl-72) */}
@@ -1101,7 +1100,6 @@ export default function App() {
           isCloudConnected={isCloudConnected}
           onSignOut={handleSignOut}
           onGoToLanding={() => setViewMode('landing')}
-          onToggleRole={handleToggleRole}
         />
 
         {/* View Content */}

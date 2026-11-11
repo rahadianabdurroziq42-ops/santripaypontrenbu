@@ -258,16 +258,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}>
                     {userRole === 'PENGURUS' ? 'Pengurus (Full Akses)' : 'Bendahara (Loket Kasir)'}
                   </span>
-                  {onToggleRole && (
-                    <button
-                      type="button"
-                      onClick={onToggleRole}
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-                      title="Klik untuk beralih peran Pengurus / Bendahara"
-                    >
-                      ⇄
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

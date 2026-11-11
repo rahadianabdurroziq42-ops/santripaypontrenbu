@@ -195,7 +195,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       return;
     }
 
-    setLoginError('Kredensial tidak cocok! Gunakan akun Pengurus (bendahara01@gmail.com / bendahara01) atau akun Bendahara (bendahara@gmail.com / bendahara).');
+    setLoginError('Username atau password salah! Pastikan kredensial login Anda sudah benar.');
   };
 
   return (
@@ -803,73 +803,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           {/* ======================================================== */}
-          {/* SISI KANAN: PORTAL LOGIN BENDAHARA (5 COLS) */}
+          {/* SISI KANAN: PORTAL LOGIN (5 COLS) */}
           {/* ======================================================== */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-gradient-to-b from-slate-800/95 to-slate-850/95 backdrop-blur-md rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl space-y-6">
               
-              {/* Header Box */}
-              <div className="space-y-2.5 pb-4 border-b border-slate-700/80">
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold tracking-wider uppercase">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span>2 Akun Terintegrasi • 1 Database</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-tight">
-                    Login Pengurus & Bendahara
-                  </h2>
-                  <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
-                    Aplikasi ini dikelola 2 peran yang terhubung dalam 1 buku kas syariah terpadu.
-                  </p>
-                </div>
-
-                {/* Quick Account Preset Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginUsername('bendahara01@gmail.com');
-                      setLoginPassword('bendahara01');
-                      setLoginError('');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                      loginUsername === 'bendahara01@gmail.com'
-                        ? 'bg-emerald-600/30 border-emerald-500 text-white shadow-xs'
-                        : 'bg-slate-900/60 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-emerald-300 text-[11px]">1. Akun Pengurus</span>
-                      <span className="text-[9px] px-1 rounded bg-emerald-500/30 text-emerald-200">Full Akses</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block truncate">bendahara01@gmail.com</span>
-                    <span className="text-[9px] text-emerald-400/90 block mt-0.5">Semua Setoran & Penarikan</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginUsername('bendahara@gmail.com');
-                      setLoginPassword('bendahara');
-                      setLoginError('');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                      loginUsername === 'bendahara@gmail.com'
-                        ? 'bg-teal-600/30 border-teal-500 text-white shadow-xs'
-                        : 'bg-slate-900/60 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-teal-300 text-[11px]">2. Akun Bendahara</span>
-                      <span className="text-[9px] px-1 rounded bg-teal-500/30 text-teal-200">Loket Kasir</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block truncate">bendahara@gmail.com</span>
-                    <span className="text-[9px] text-teal-400/90 block mt-0.5">Titipan & Jajan Saja</span>
-                  </button>
-                </div>
+              {/* Header Box - Bersih: Hanya "Login" */}
+              <div className="space-y-1.5 pb-4 border-b border-slate-700/80">
+                <h2 className="text-xl font-black text-white tracking-tight">
+                  Login
+                </h2>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Silakan masukkan akun Anda untuk mengakses sistem.
+                </p>
               </div>
 
               {/* Login State: Authenticated Session vs Clean Form */}
@@ -884,18 +830,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-lg font-mono shadow-inner">
-                        {(currentUser.displayName || currentUser.email || 'B')[0].toUpperCase()}
+                        {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center space-x-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         <span className="text-xs font-bold text-emerald-300">
-                          {currentUser.email === 'bendahara01@gmail.com' ? 'Sesi Pengurus (Full Access) Aktif' : 'Sesi Bendahara Loket Aktif'}
+                          Sesi Aktif
                         </span>
                       </div>
                       <p className="text-sm font-black text-white truncate">
-                        {currentUser.displayName || 'Pengurus Pesantren'}
+                        {currentUser.displayName || 'Pengguna'}
                       </p>
                       <p className="text-xs text-slate-300 font-mono truncate">
                         {currentUser.email}
@@ -908,7 +854,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       onClick={onEnterDashboard}
                       className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-950/50 transition-all flex items-center justify-center space-x-2 cursor-pointer"
                     >
-                      <span>Masuk ke Dashboard Aplikasi</span>
+                      <span>Masuk</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                     <button
@@ -916,7 +862,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1.5 cursor-pointer border border-slate-700"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span>Ganti Akun / Keluar (Logout)</span>
+                      <span>Keluar (Logout)</span>
                     </button>
                   </div>
                 </div>
@@ -939,7 +885,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         </div>
                         <input
                           type="text"
-                          placeholder="bendahara01@gmail.com atau bendahara@gmail.com"
+                          placeholder="Masukkan username atau email..."
                           value={loginUsername}
                           onChange={(e) => {
                             setLoginUsername(e.target.value);
@@ -996,7 +942,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     {loginSuccess && (
                       <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center space-x-2 text-emerald-300 text-xs">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="font-bold">Login Berhasil! Mengalihkan ke Dashboard...</span>
+                        <span className="font-bold">Login Berhasil! Mengalihkan...</span>
                       </div>
                     )}
 
@@ -1007,7 +953,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/50 transition-all flex items-center justify-center space-x-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-75 disabled:cursor-not-allowed"
                     >
                       <LogIn className="w-4 h-4" />
-                      <span>Masuk ke Dashboard</span>
+                      <span>Masuk</span>
                     </button>
                   </div>
 

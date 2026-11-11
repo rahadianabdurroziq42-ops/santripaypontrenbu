@@ -163,14 +163,14 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
           return headerRow.findIndex((h) => keywords.some((kw) => h.includes(kw)));
         };
 
-        const idxNisn = findColIndex(['nisn', 'nomor induk', 'nis']);
+        const idxNisn = findColIndex(['nisn', 'nomor induk', 'nis', 'no. induk', 'id']);
         const idxName = findColIndex(['nama santri', 'nama lengkap', 'nama']);
-        const idxGender = findColIndex(['jenis kelamin', 'jk', 'gender', 'l/p']);
-        const idxGuardian = findColIndex(['nama orang tua', 'nama wali', 'wali']);
-        const idxPhone = findColIndex(['no hp', 'nomor hp', 'telepon', 'kontak', 'phone', 'wa']);
-        const idxAddress = findColIndex(['alamat wali', 'alamat']);
-        const idxDeposit = findColIndex(['setoran awal', 'saldo awal', 'deposit', 'setoran']);
-        const idxLimit = findColIndex(['limit jajan', 'limit harian', 'limit']);
+        const idxGender = findColIndex(['jenis kelamin', 'jk', 'gender', 'l/p', 'l / p', 'kelamin']);
+        const idxGuardian = findColIndex(['nama orang tua', 'nama wali', 'wali', 'orang tua']);
+        const idxPhone = findColIndex(['no hp', 'nomor hp', 'telepon', 'kontak', 'phone', 'wa', 'no wa']);
+        const idxAddress = findColIndex(['alamat wali', 'alamat', 'domisili', 'kota']);
+        const idxDeposit = findColIndex(['setoran awal', 'saldo awal', 'deposit', 'setoran', 'saldo', 'titipan awal', 'tabungan']);
+        const idxLimit = findColIndex(['limit jajan', 'limit harian', 'limit', 'uang saku']);
 
         const existingNisnSet = new Set(existingSantriList.map((s) => s.nisn.trim().toLowerCase()));
         const fileSeenNisn = new Set<string>();
@@ -192,14 +192,42 @@ export const ImportSantriModal: React.FC<ImportSantriModalProps> = ({
           
           let depositVal = 0;
           if (idxDeposit !== -1 && row[idxDeposit] !== undefined) {
-            const num = Number(String(row[idxDeposit]).replace(/[^0-9.-]+/g, ''));
-            if (!isNaN(num)) depositVal = num;
+            const rawCell = row[idxDeposit];
+            if (typeof rawCell === 'number') {
+              depositVal = rawCell >= 0 ? rawCell : 0;
+            } else {
+              // Strip Rp, spaces, and treat periods/commas
+              let cleaned = String(rawCell).replace(/rp/gi, '').replace(/\s+/g, '');
+              // If format is like "100.000" or "100.000,00"
+              if (cleaned.includes('.') && !cleaned.includes(',')) {
+                cleaned = cleaned.replace(/\./g, '');
+              } else if (cleaned.includes('.') && cleaned.includes(',')) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+              } else if (cleaned.includes(',')) {
+                cleaned = cleaned.replace(',', '.');
+              }
+              const num = parseFloat(cleaned);
+              if (!isNaN(num) && num >= 0) depositVal = num;
+            }
           }
 
           let limitVal = 10000;
           if (idxLimit !== -1 && row[idxLimit] !== undefined) {
-            const num = Number(String(row[idxLimit]).replace(/[^0-9.-]+/g, ''));
-            if (!isNaN(num) && num > 0) limitVal = num;
+            const rawCell = row[idxLimit];
+            if (typeof rawCell === 'number') {
+              limitVal = rawCell > 0 ? rawCell : 10000;
+            } else {
+              let cleaned = String(rawCell).replace(/rp/gi, '').replace(/\s+/g, '');
+              if (cleaned.includes('.') && !cleaned.includes(',')) {
+                cleaned = cleaned.replace(/\./g, '');
+              } else if (cleaned.includes('.') && cleaned.includes(',')) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+              } else if (cleaned.includes(',')) {
+                cleaned = cleaned.replace(',', '.');
+              }
+              const num = parseFloat(cleaned);
+              if (!isNaN(num) && num > 0) limitVal = num;
+            }
           }
 
           // Validation

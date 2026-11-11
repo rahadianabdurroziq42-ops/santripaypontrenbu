@@ -165,8 +165,12 @@ export default function App() {
   // Initialize Firebase connection & Auth listener
   useEffect(() => {
     testConnection();
-    // Seed initial data to cloud if collections are empty (for both Google and Bendahara local logins)
-    seedInitialDataToCloud(santriList, transactions, pesantrenProfile);
+    // Only seed initial sample data on first run if local storage is completely fresh
+    const hasInitialized = localStorage.getItem('santripay_initialized');
+    if (!hasInitialized) {
+      seedInitialDataToCloud(santriList, transactions, pesantrenProfile);
+      localStorage.setItem('santripay_initialized', 'true');
+    }
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -200,7 +204,7 @@ export default function App() {
 
     const unsubSantri = subscribeToSantri(
       (cloudSantri) => {
-        if (cloudSantri && cloudSantri.length > 0) {
+        if (cloudSantri) {
           setSantriList(normalizeSantriList(cloudSantri));
         }
       },
@@ -211,20 +215,14 @@ export default function App() {
 
     const unsubTrx = subscribeToTransactions(
       (cloudTrx) => {
-        if (cloudTrx && cloudTrx.length > 0) {
-          setTransactions((localTrx) => {
-            const normalizedCloud = normalizeTransactionsList(cloudTrx);
-            // Preserve any pending local transactions that might not yet have reflected in cloud snapshot
-            const cloudIds = new Set(normalizedCloud.map((t) => t.id));
-            const pendingLocal = localTrx.filter((t) => !cloudIds.has(t.id));
-            const merged = [...pendingLocal, ...normalizedCloud];
-            merged.sort((a, b) => {
-              const dComp = b.date.localeCompare(a.date);
-              if (dComp !== 0) return dComp;
-              return (b.time || '').localeCompare(a.time || '');
-            });
-            return merged;
+        if (cloudTrx) {
+          const normalizedCloud = normalizeTransactionsList(cloudTrx);
+          normalizedCloud.sort((a, b) => {
+            const dComp = b.date.localeCompare(a.date);
+            if (dComp !== 0) return dComp;
+            return (b.time || '').localeCompare(a.time || '');
           });
+          setTransactions(normalizedCloud);
         }
       },
       (err) => {
@@ -963,13 +961,17 @@ export default function App() {
       if (newSantriList.length > 0) {
         setSelectedSantriId(newSantriList[0].id);
       }
-      if (newTrxList.length > 0) {
-        // Ganti transaksi atau sisipkan transaksi setoran awal dari impor baru
-        setTransactions(newTrxList);
-      } else {
-        setTransactions([]);
+      setTransactions(newTrxList);
+      
+      // Update cache lokal langsung secara sinkron
+      try {
+        localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(newSantriList));
+        localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(newTrxList));
+      } catch (e) {
+        console.error('Error writing clean import to localStorage:', e);
       }
-      // Sinkronkan pergantian total ke Cloud Firestore
+
+      // Sinkronkan pergantian total ke Cloud Firestore (hapus dokumen transaksi lama & santri lama)
       replaceAllSantriInCloud(newSantriList, newTrxList).catch((e) =>
         console.error('Cloud replace santri error:', e)
       );

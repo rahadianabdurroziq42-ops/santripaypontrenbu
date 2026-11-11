@@ -269,22 +269,38 @@ export async function seedInitialDataToCloud(
   } catch (error) {
     console.error('Error during cloud seeding check:', error);
   }
-}// Bulk replace entire santri collection in Cloud Firestore
+}// Bulk replace entire santri and transactions collection in Cloud Firestore
 export async function replaceAllSantriInCloud(
   newSantriList: Santri[],
   newInitialTransactions: Transaction[] = []
 ): Promise<void> {
   try {
-    // 1. Fetch all existing santri documents to delete them
+    // 1. Fetch and delete all existing santri documents
     const existingSnap = await getDocs(collection(db, 'santri'));
-    const deleteBatch = writeBatch(db);
-    existingSnap.forEach((docSnap) => {
-      deleteBatch.delete(docSnap.ref);
-    });
-    await deleteBatch.commit();
-
-    // 2. Insert the new imported santri in batch (chunked by 450 to respect Firestore limit of 500)
     const chunkSize = 400;
+    const santriDocs = existingSnap.docs;
+    for (let i = 0; i < santriDocs.length; i += chunkSize) {
+      const chunk = santriDocs.slice(i, i + chunkSize);
+      const deleteBatch = writeBatch(db);
+      chunk.forEach((docSnap) => {
+        deleteBatch.delete(docSnap.ref);
+      });
+      await deleteBatch.commit();
+    }
+
+    // 2. Fetch and delete all existing transaction documents (so reports 100% reset to new import)
+    const existingTrxSnap = await getDocs(collection(db, 'transactions'));
+    const trxDocs = existingTrxSnap.docs;
+    for (let i = 0; i < trxDocs.length; i += chunkSize) {
+      const chunk = trxDocs.slice(i, i + chunkSize);
+      const deleteBatch = writeBatch(db);
+      chunk.forEach((docSnap) => {
+        deleteBatch.delete(docSnap.ref);
+      });
+      await deleteBatch.commit();
+    }
+
+    // 3. Insert the new imported santri in batches
     for (let i = 0; i < newSantriList.length; i += chunkSize) {
       const chunk = newSantriList.slice(i, i + chunkSize);
       const insertBatch = writeBatch(db);
@@ -297,7 +313,7 @@ export async function replaceAllSantriInCloud(
       await insertBatch.commit();
     }
 
-    // 3. Save any initial deposit transactions
+    // 4. Save new initial deposit transactions
     if (newInitialTransactions.length > 0) {
       for (let i = 0; i < newInitialTransactions.length; i += chunkSize) {
         const chunk = newInitialTransactions.slice(i, i + chunkSize);
@@ -312,6 +328,6 @@ export async function replaceAllSantriInCloud(
       }
     }
   } catch (error) {
-    console.error('Error replacing santri in cloud:', error);
+    console.error('Error replacing santri and transactions in cloud:', error);
   }
 }
